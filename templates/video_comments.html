@@ -1,0 +1,147 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+<div class="mb-4">
+    <a href="{{ url_for('video.video_list') }}" class="btn btn-outline-secondary btn-sm">
+        <i class="bi bi-arrow-left"></i> Torna ai Video
+    </a>
+</div>
+
+<div class="row">
+    <!-- Video Preview -->
+    <div class="col-12 col-lg-6 mb-4">
+        <div class="card bg-dark border-secondary h-100">
+            <div class="ratio ratio-16x9">
+                <video controls preload="metadata" class="rounded-top">
+                    <source src="{{ url_for('static', filename='videos/' + video.filename) }}" type="video/mp4">
+                </video>
+            </div>
+            <div class="card-body">
+                <h5 class="text-white mb-1">{{ video.title }}</h5>
+                <small class="text-muted d-block mb-2">
+                    <i class="bi bi-person-fill"></i>
+                    {{ video.uploader.soprannome if video.uploader.soprannome else video.uploader.nome_completo }}
+                    · {{ video.created_at.strftime('%d/%m/%Y') }}
+                </small>
+                {% if video.description %}
+                <p class="text-white-50 small mb-2">{{ video.description }}</p>
+                {% endif %}
+
+                <!-- Protagonisti -->
+                {% if video.protagonists %}
+                <div class="mb-2">
+                    {% for p in video.protagonists %}
+                    <span class="badge bg-info text-dark me-1">{{ p.soprannome if p.soprannome else p.nome_completo
+                        }}</span>
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                <!-- Like e Actions -->
+                <div class="d-flex gap-2 mt-3">
+                    <button class="btn btn-sm btn-outline-danger like-btn video-like-btn" data-video-id="{{ video.id }}"
+                        type="button">
+                        <i class="bi {{ 'bi-heart-fill' if video.is_liked_by(current_user.id) else 'bi-heart' }}"></i>
+                        <span class="like-count">{{ video.like_count() }}</span>
+                    </button>
+                    <a href="{{ url_for('video.video_download', video_id=video.id) }}" class="btn btn-sm btn-outline-success">
+                        <i class="bi bi-download"></i> Download
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Comments Section -->
+    <div class="col-12 col-lg-6">
+        <div class="card bg-dark border-info h-100">
+            <div class="card-header border-secondary">
+                <h5 class="mb-0 text-info">
+                    <i class="bi bi-chat-dots-fill me-2"></i>Commenti ({{ video.comments|length }})
+                </h5>
+            </div>
+            <div class="card-body d-flex flex-column">
+                <!-- Comments List -->
+                <div class="flex-grow-1 mb-3" id="commentsList" style="max-height: 400px; overflow-y: auto;">
+                    {% for comment in video.comments %}
+                    <div class="mb-3 p-3 bg-black rounded" id="comment-{{ comment.id }}">
+                        <!-- Quoted Reply -->
+                        {% if comment.reply_to %}
+                        <div class="border-start border-info ps-2 mb-2 small">
+                            <span class="text-info">↩ {{ comment.reply_to.user.soprannome if
+                                comment.reply_to.user.soprannome else comment.reply_to.user.nome_completo }}:</span>
+                            <span class="text-muted">{{ comment.reply_to.text[:80] }}{% if comment.reply_to.text|length
+                                > 80 %}...{% endif %}</span>
+                        </div>
+                        {% endif %}
+
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <strong class="text-info">
+                                    {{ comment.user.soprannome if comment.user.soprannome else
+                                    comment.user.nome_completo }}
+                                </strong>
+                                <span class="text-muted small">· {{ comment.created_at.strftime('%d/%m/%Y %H:%M')
+                                    }}</span>
+                            </div>
+                            <div class="d-flex gap-1">
+                                <!-- Reply Button -->
+                                <button type="button" class="btn btn-sm btn-outline-info border-0 p-0 px-1 set-reply-btn"
+                                    data-comment-id="{{ comment.id }}"
+                                    data-reply-user-name="{{ (comment.user.soprannome if comment.user.soprannome else comment.user.nome_completo)|e }}"
+                                    data-reply-preview="{{ comment.text[:50]|e }}">
+                                    <i class="bi bi-reply"></i>
+                                </button>
+
+                                {% if comment.user_id == current_user.id or current_user.is_admin %}
+                                <form action="{{ url_for('video.video_comment_delete', comment_id=comment.id) }}"
+                                    method="POST" class="confirm-delete-comment" data-confirm-message="Eliminare commento?"
+                                    style="display: inline;">
+                                    <button type="submit" class="btn btn-sm btn-outline-secondary border-0 p-0 px-1">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </form>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <p class="mb-0 text-white mt-1">{{ comment.text }}</p>
+                    </div>
+                    {% else %}
+                    <div class="text-center text-muted py-4">
+                        <i class="bi bi-chat display-4"></i>
+                        <p class="mt-2">Nessun commento ancora. Sii il primo!</p>
+                    </div>
+                    {% endfor %}
+                </div>
+
+                <!-- Reply Preview (hidden by default) -->
+                <div id="replyPreview" class="alert alert-info py-2 d-none mb-2">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <small>
+                            <i class="bi bi-reply-fill"></i> Rispondi a <strong id="replyToName"></strong>:
+                            <span class="text-muted" id="replyToPreview"></span>
+                        </small>
+                        <button type="button" class="btn-close btn-close-white" id="clearReplyBtn"></button>
+                    </div>
+                </div>
+
+                <!-- Comment Form -->
+                <form action="{{ url_for('video.video_comment', video_id=video.id) }}" method="POST" class="mt-auto"
+                    id="commentForm">
+                    <input type="hidden" name="reply_to_id" id="replyToId" value="">
+                    <div class="input-group">
+                        <input type="text" name="comment_text" id="commentInput"
+                            class="form-control bg-black text-white border-secondary"
+                            placeholder="Scrivi un commento..." maxlength="500" required>
+                        <button type="submit" class="btn btn-info">
+                            <i class="bi bi-send-fill"></i>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

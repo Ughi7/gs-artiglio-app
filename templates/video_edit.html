@@ -1,0 +1,79 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+<div class="mb-4">
+    <a href="{{ url_for('video.video_list') }}" class="btn btn-outline-secondary btn-sm">
+        <i class="bi bi-arrow-left"></i> Torna ai Video
+    </a>
+</div>
+
+<div class="card bg-dark border-warning text-white">
+    <div class="card-header border-secondary">
+        <h5 class="mb-0 text-artiglio">
+            <i class="bi bi-pencil-fill me-2"></i>Modifica Video
+        </h5>
+    </div>
+    <form action="{{ url_for('video.video_edit', video_id=video.id) }}" method="POST">
+        <div class="card-body">
+            <!-- Preview Video -->
+            <div class="ratio ratio-16x9 mb-3">
+                <video controls preload="metadata" class="rounded">
+                    <source src="{{ url_for('static', filename='videos/' + video.filename) }}" type="video/mp4">
+                </video>
+            </div>
+
+            <!-- Title -->
+            <div class="mb-3">
+                <label class="form-label text-warning">Titolo *</label>
+                <input type="text" name="title" class="form-control bg-black text-white border-secondary"
+                    maxlength="100" value="{{ video.title }}" required>
+            </div>
+
+            <!-- Description -->
+            <div class="mb-3">
+                <label class="form-label text-warning">Descrizione</label>
+                <textarea name="description" class="form-control bg-black text-white border-secondary" rows="3"
+                    maxlength="500">{{ video.description or '' }}</textarea>
+            </div>
+
+            <!-- Protagonists (checkbox list) -->
+            <div class="mb-3">
+                <label class="form-label text-warning">Protagonisti</label>
+                <div class="border border-secondary rounded p-2" style="max-height: 200px; overflow-y: auto;">
+                    {% for player in players %}
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="protagonists" value="{{ player.id }}"
+                            id="edit_prot_{{ player.id }}" {{ 'checked' if player in video.protagonists else '' }}>
+                        <label class="form-check-label text-white" for="edit_prot_{{ player.id }}">
+                            {{ player.soprannome if player.soprannome else player.nome_completo }}
+                        </label>
+                    </div>
+                    {% endfor %}
+                </div>
+                <small class="text-muted">Seleziona i giocatori protagonisti del video</small>
+            </div>
+
+            <!-- Event -->
+            <div class="mb-3">
+                <label class="form-label text-warning">Partita (opzionale)</label>
+                <select name="event_id" class="form-select bg-black text-white border-secondary">
+                    <option value="">-- Nessuna partita --</option>
+                    {% for event in events %}
+                    <option value="{{ event.id }}" {{ 'selected' if video.event_id==event.id else '' }}>
+                        {{ event.date_start.strftime('%d/%m/%Y') }} - vs {{ event.opponent_name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+        <div class="card-footer border-secondary d-flex gap-2">
+            <a href="{{ url_for('video.video_list') }}" class="btn btn-secondary">Annulla</a>
+            <button type="submit" class="btn btn-warning fw-bold flex-grow-1">
+                <i class="bi bi-check-lg"></i> Salva Modifiche
+            </button>
+        </div>
+    </form>
+</div>
+
+{% endblock %}

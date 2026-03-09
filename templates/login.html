@@ -1,0 +1,90 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="row justify-content-center mt-5">
+    <div class="col-md-6 col-lg-4">
+        <div class="card bg-dark border-secondary shadow-lg">
+            <div class="card-body p-5 text-center">
+                
+                <div class="display-1 mb-3">🏐</div>
+                <h3 class="text-artiglio mb-4">AREA RISERVATA</h3>
+                
+                {% with messages = get_flashed_messages() %}
+                    {% if messages %}
+                        {% for message in messages %}
+                            <div class="alert alert-danger">{{ message }}</div>
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
+
+                <form method="POST" action="/login">
+                    <div class="mb-3 text-start">
+                        <label class="form-label text-muted">Username</label>
+                        <input type="text" name="username" class="form-control bg-black text-white border-secondary" required autofocus>
+                    </div>
+                    
+                    <div class="mb-4 text-start">
+                        <label class="form-label text-muted">Password</label>
+                        <input type="password" name="password" class="form-control bg-black text-white border-secondary" required>
+                    </div>
+
+                    <button type="submit" class="btn btn-warning w-100 fw-bold btn-lg">ENTRA</button>
+                </form>
+
+            </div>
+        </div>
+        <p class="text-center text-white-50 mt-3 small">
+            <span class="fw-bold text-artiglio">GS ARTIGLIO</span> - Internal Tool
+        </p>
+
+        <!-- Mini guida installazione PWA -->
+        <div class="card bg-dark border-info mt-4 shadow">
+            <div class="card-header bg-info bg-opacity-25 border-info">
+                <h6 class="mb-0 text-info">
+                    <i class="bi bi-download me-2"></i>Installa l'App sul tuo dispositivo
+                </h6>
+            </div>
+            <div class="card-body">
+                <!-- Android -->
+                <div class="mb-3">
+                    <div class="d-flex align-items-center mb-2">
+                        <span class="badge bg-success me-2">Android</span>
+                        <small class="text-muted">Chrome</small>
+                    </div>
+                    <ol class="small text-white-50 mb-0 ps-3">
+                        <li>Tocca <i class="bi bi-three-dots-vertical"></i> (menu) in alto a destra</li>
+                        <li>Seleziona <strong class="text-white">"Aggiungi a schermata Home"</strong> o <strong class="text-white">"Installa app"</strong></li>
+                        <li>Conferma toccando <strong class="text-white">Aggiungi</strong></li>
+                    </ol>
+                </div>
+
+                <!-- iOS -->
+                <div class="mb-3">
+                    <div class="d-flex align-items-center mb-2">
+                        <span class="badge bg-secondary me-2">iPhone</span>
+                        <small class="text-muted">Safari</small>
+                    </div>
+                    <ol class="small text-white-50 mb-0 ps-3">
+                        <li>Tocca <i class="bi bi-box-arrow-up"></i> (condividi) in basso</li>
+                        <li>Scorri e seleziona <strong class="text-white">"Aggiungi a Home"</strong></li>
+                        <li>Conferma toccando <strong class="text-white">Aggiungi</strong></li>
+                    </ol>
+                </div>
+
+                <!-- Desktop -->
+                <div>
+                    <div class="d-flex align-items-center mb-2">
+                        <span class="badge bg-primary me-2">Desktop</span>
+                        <small class="text-muted">Chrome / Edge</small>
+                    </div>
+                    <ol class="small text-white-50 mb-0 ps-3">
+                        <li>Clicca l'icona <i class="bi bi-plus-square"></i> nella barra degli indirizzi</li>
+                        <li>Oppure menu → <strong class="text-white">"Installa GS Artiglio App"</strong></li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+{% endblock %}

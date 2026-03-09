@@ -1,0 +1,797 @@
+<!doctype html>
+<html lang="it">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+    <title>GS Artiglio App</title>
+
+    <meta name="theme-color" content="#FFC107">
+    <meta name="description" content="App della squadra GS Artiglio - Gestione multe, rosa, partite e molto altro">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Artiglio">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+
+    <!-- Preconnect per connessione anticipata ai CDN (ottimizzazione performance) -->
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+    <link rel="manifest" href="/static/manifest.json">
+
+    <link rel="icon" type="image/png" sizes="192x192" href="/static/icons3/icon-192x192.png">
+    <link rel="icon" type="image/png" sizes="512x512" href="/static/icons3/icon-512x512.png">
+    <link rel="apple-touch-icon" href="/static/icons3/icon-192x192.png">
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css?v=2">
+    <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;700&family=Roboto:wght@400;700&display=swap"
+        rel="stylesheet">
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}?v=1772534340">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/components.css') }}?v=1772534340">
+    {% block extra_css %}{% endblock %}
+
+    <script>
+        (function () {
+            function getCsrfToken() {
+                const meta = document.querySelector('meta[name="csrf-token"]');
+                return meta ? meta.getAttribute('content') : '';
+            }
+
+            function shouldAttachCsrf(method, url) {
+                const normalizedMethod = (method || 'GET').toUpperCase();
+                if (['GET', 'HEAD', 'OPTIONS', 'TRACE'].includes(normalizedMethod)) {
+                    return false;
+                }
+
+                if (!url) {
+                    return true;
+                }
+
+                try {
+                    const target = new URL(url, window.location.origin);
+                    return target.origin === window.location.origin;
+                } catch (_) {
+                    return true;
+                }
+            }
+
+            function appendCsrfTokenToForms(root) {
+                const csrfToken = getCsrfToken();
+                if (!csrfToken) {
+                    return;
+                }
+
+                root.querySelectorAll('form').forEach((form) => {
+                    const method = (form.getAttribute('method') || 'GET').toUpperCase();
+                    if (method !== 'POST') {
+                        return;
+                    }
+
+                    let tokenInput = form.querySelector('input[name="csrf_token"]');
+                    if (!tokenInput) {
+                        tokenInput = document.createElement('input');
+                        tokenInput.type = 'hidden';
+                        tokenInput.name = 'csrf_token';
+                        form.appendChild(tokenInput);
+                    }
+
+                    tokenInput.value = csrfToken;
+                });
+            }
+
+            const originalFetch = window.fetch.bind(window);
+            window.fetch = function (input, init) {
+                const request = input instanceof Request ? input : null;
+                const method = (init && init.method) || (request && request.method) || 'GET';
+                const url = typeof input === 'string' ? input : (request ? request.url : '');
+
+                if (!shouldAttachCsrf(method, url)) {
+                    return originalFetch(input, init);
+                }
+
+                const csrfToken = getCsrfToken();
+                if (!csrfToken) {
+                    return originalFetch(input, init);
+                }
+
+                if (request) {
+                    const headers = new Headers(request.headers || {});
+                    headers.set('X-CSRFToken', csrfToken);
+                    return originalFetch(new Request(request, { headers }), init);
+                }
+
+                const nextInit = Object.assign({}, init || {});
+                const headers = new Headers(nextInit.headers || {});
+                headers.set('X-CSRFToken', csrfToken);
+                nextInit.headers = headers;
+                return originalFetch(input, nextInit);
+            };
+
+            document.addEventListener('DOMContentLoaded', function () {
+                appendCsrfTokenToForms(document);
+            });
+
+            document.addEventListener('submit', function (event) {
+                const form = event.target;
+                if (!(form instanceof HTMLFormElement)) {
+                    return;
+                }
+
+                appendCsrfTokenToForms({
+                    querySelectorAll() {
+                        return [form];
+                    }
+                });
+            }, true);
+
+            window.getCsrfToken = getCsrfToken;
+            window.appendCsrfTokenToForms = appendCsrfTokenToForms;
+        })();
+    </script>
+</head>
+
+<body data-theme="dark" data-bs-theme="dark">
+
+    <!-- Toast Container per notifiche migliorate -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <!-- Pull to Refresh Indicator -->
+    <div id="ptr-indicator" class="ptr-indicator">
+        <div class="spinner"></div>
+        <span>Aggiornamento...</span>
+    </div>
+
+    <div id="pwa-install-banner">
+        <div class="d-flex align-items-center justify-content-between">
+            <div class="d-flex align-items-center">
+                <span class="fs-4 me-2">🦅</span>
+                <div>
+                    <strong>Installa l'App!</strong>
+                    <small class="d-block">Aggiungi alla home per un'esperienza migliore</small>
+                </div>
+            </div>
+            <div class="d-flex gap-2">
+                <button id="dismissInstallBannerBtn" class="btn btn-sm btn-outline-dark">No</button>
+                <button id="installPWABtn" class="btn btn-sm btn-dark fw-bold">Installa</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Push Notification Activation Banner -->
+    <div id="push-prompt-banner" style="
+        display: none;
+        position: fixed;
+        bottom: 85px;
+        left: 10px;
+        right: 10px;
+        background: linear-gradient(135deg, #1a1a1a, #2d2d2d);
+        color: #fff;
+        padding: 14px 16px;
+        border-radius: 14px;
+        z-index: 10001;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+        border: 1px solid rgba(255, 193, 7, 0.3);
+        animation: fadeInUp 0.3s ease-out;">
+        <div class="d-flex align-items-center justify-content-between">
+            <div class="d-flex align-items-center">
+                <span class="fs-4 me-2">🔔</span>
+                <div>
+                    <strong style="color: #FFC107;">Attiva le Notifiche!</strong>
+                    <small class="d-block" style="color: #aaa;">Ricevi aggiornamenti su partite, MVP e altro</small>
+                </div>
+            </div>
+            <div class="d-flex gap-2">
+                <button id="dismissPushBannerBtn" class="btn btn-sm btn-outline-secondary"
+                    style="border-color: #555; color: #aaa;">Non ora</button>
+                <button id="activatePushBannerBtn" class="btn btn-sm"
+                    style="background: linear-gradient(135deg, #FFC107, #FF8F00); color: #000; font-weight: bold;">Attiva
+                    Ora</button>
+            </div>
+        </div>
+    </div>
+
+    <nav class="navbar fixed-top top-bar px-3 d-flex justify-content-between align-items-center">
+        <div class="d-flex align-items-center">
+            <a href="{{ url_for('game.game') }}" class="d-flex align-items-center text-decoration-none"
+                title="Gioca a Floppy Eagle!">
+                <div class="logo-container">
+                    <span class="logo-icon">🦅</span>
+                </div>
+                <span class="ms-2 text-white small fw-bold d-none d-sm-block">Gioca</span>
+            </a>
+        </div>
+
+        <div class="text-center">
+            <span class="navbar-brand mb-0 h1 fs-5 fs-md-3" style="letter-spacing: 1px;">
+                <span class="text-white fw-light">GS</span> <span class="text-artiglio fw-bold">ARTIGLIO</span>
+            </span>
+        </div>
+
+        <div class="d-flex align-items-center gap-3">
+            {% if current_user.is_authenticated %}
+
+            <!-- Theme Toggle -->
+            <label class="theme-toggle" title="Cambia Tema">
+                <input type="checkbox" id="themeToggle">
+                <span class="toggle-track">
+                    <span class="toggle-thumb">🌙</span>
+                </span>
+            </label>
+
+            <div class="dropdown">
+                <button class="btn btn-link text-artiglio p-0" type="button" data-bs-toggle="dropdown"
+                    aria-expanded="false" title="Link Utili">
+                    <i class="bi bi-link-45deg fs-5"></i>
+                </button>
+
+                <ul class="dropdown-menu dropdown-menu-end bg-dark border-secondary shadow" style="min-width: 200px;">
+                    <li>
+                        <h6 class="dropdown-header text-muted text-uppercase small">Social & Utility</h6>
+                    </li>
+
+                    <li>
+                        <a class="dropdown-item text-white d-flex align-items-center py-2"
+                            href="https://www.instagram.com/gs_artiglio_cm?igsh=eHgwZ3JuM3ozcDl2" target="_blank">
+                            <i class="bi bi-instagram text-danger me-3 fs-5"></i> Instagram
+                        </a>
+                    </li>
+
+                    <li>
+                        <a class="dropdown-item text-white d-flex align-items-center py-2"
+                            href="https://www.youtube.com/playlist?list=PLS2j81LLipkkII-Do0rOohx144dPnE9V6"
+                            target="_blank">
+                            <i class="bi bi-youtube text-danger me-3 fs-5"></i> YouTube
+                        </a>
+                    </li>
+
+                    <li>
+                        <a class="dropdown-item text-white d-flex align-items-center py-2"
+                            href="https://open.spotify.com/playlist/1dSMM7TVdVoFojel8croMR?si=f14beb93b8814337"
+                            target="_blank">
+                            <i class="bi bi-spotify text-success me-3 fs-5"></i> Playlist
+                        </a>
+                    </li>
+
+                    <li>
+                        <hr class="dropdown-divider bg-secondary">
+                    </li>
+                    <li>
+                        <a class="dropdown-item text-white d-flex align-items-center py-2"
+                            href="https://docs.google.com/spreadsheets/d/18EHA4tfMMJXr-fXCVQ1O_DNyrKHsKh9AUQf25DsakFw/edit?usp=sharing"
+                            target="_blank">
+                            <i class="bi bi-bar-chart-line-fill text-warning me-3 fs-5"></i> Scheda Pesi
+                        </a>
+                    </li>
+                </ul>
+            </div>
+
+            <!-- Settings Dropdown -->
+            <div class="dropdown">
+                <button class="btn btn-link text-white p-0" type="button" data-bs-toggle="dropdown"
+                    aria-expanded="false" title="Impostazioni">
+                    <i class="bi bi-gear fs-5"></i>
+                </button>
+
+                <ul class="dropdown-menu dropdown-menu-end bg-dark border-secondary shadow" style="min-width: 200px;">
+                    <li>
+                        <h6 class="dropdown-header text-muted text-uppercase small">Impostazioni</h6>
+                    </li>
+
+                    {% if current_user.is_admin %}
+                    <li>
+                        <a class="dropdown-item text-white d-flex align-items-center py-2" href="/admin">
+                            <i class="bi bi-tools text-warning me-3 fs-5"></i> Pannello Admin
+                        </a>
+                    </li>
+                    <li>
+                        <a class="dropdown-item text-white d-flex align-items-center py-2"
+                            href="{{ url_for('main.admin_assegna_badge_mensili') }}">
+                            <i class="bi bi-trophy text-warning me-3 fs-5"></i> Assegna Badge Mensili
+                        </a>
+                    </li>
+                    <li>
+                        <a class="dropdown-item text-white d-flex align-items-center py-2"
+                            href="{{ url_for('admin_custom.admin_assegna_skin') }}">
+                            <i class="bi bi-palette text-warning me-3 fs-5"></i> Assegna Skin
+                        </a>
+                    </li>
+                    {% endif %}
+                    <button class="dropdown-item text-white d-flex align-items-center py-2" data-bs-toggle="modal"
+                        data-bs-target="#notificationSettingsModal">
+                        <i class="bi bi-bell-fill text-warning me-3 fs-5"></i>
+                        <span>Notifiche</span>
+                    </button>
+                    </li>
+
+                    <li>
+                        <a class="dropdown-item text-white d-flex align-items-center py-2"
+                            href="{{ url_for('admin_custom.aggiornamenti') }}">
+                            <i class="bi bi-megaphone text-success me-3 fs-5"></i> Aggiornamenti & Feedback
+                        </a>
+                    </li>
+
+                    {% if current_user.is_admin %}
+                    <li>
+                        <a class="dropdown-item text-white d-flex align-items-center py-2"
+                            href="{{ url_for('admin_custom.admin_feedback') }}">
+                            <i class="bi bi-inbox-fill text-danger me-3 fs-5"></i> Gestisci Feedback
+                        </a>
+                    </li>
+                    {% endif %}
+
+                    <li>
+                        <a class="dropdown-item text-white d-flex align-items-center py-2"
+                            href="{{ url_for('main.profilo') }}">
+                            <i class="bi bi-person-circle text-info me-3 fs-5"></i> Profilo
+                        </a>
+                    </li>
+
+                    <li>
+                        <hr class="dropdown-divider bg-secondary">
+                    </li>
+
+                    <li>
+                        <a class="dropdown-item text-danger d-flex align-items-center py-2"
+                            href="{{ url_for('auth.logout') }}">
+                            <i class="bi bi-box-arrow-right me-3 fs-5"></i> Esci
+                        </a>
+                    </li>
+                </ul>
+            </div>
+
+            {% endif %}
+        </div>
+    </nav>
+
+    <div class="container mt-3">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        {% for category, message in messages %}
+        <div class="alert alert-{{ 'danger' if category=='error' else 'success' }} alert-dismissible fade show py-2 small shadow"
+            role="alert" style="animation: shake 0.5s ease;">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+        {% endfor %}
+        {% endif %}
+        {% endwith %}
+
+        <div id="main-container">
+            {% block content %}{% endblock %}
+        </div>
+    </div>
+
+    {% block modals %}{% endblock %}
+
+    <!-- Modal Impostazioni Notifiche -->
+    {% if current_user.is_authenticated %}
+    <div class="modal fade" id="notificationSettingsModal" tabindex="-1" aria-labelledby="notifModalLabel"
+        aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content bg-dark text-white border-warning">
+                <div class="modal-header border-secondary">
+                    <h5 class="modal-title text-artiglio" id="notifModalLabel">
+                        <i class="bi bi-bell-fill me-2"></i>Impostazioni Notifiche
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                        aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+
+                    <!-- SEZIONE PUSH (Browser) -->
+                    <div class="mb-4 pb-3 border-bottom border-secondary">
+                        <h6 class="text-white mb-3">🔔 Notifiche Push</h6>
+
+                        <div class="d-flex align-items-center justify-content-between bg-black p-3 rounded border border-secondary"
+                            id="pushControlBox">
+                            <div class="d-flex align-items-center">
+                                <i class="bi bi-phone-vibrate text-muted me-3 fs-4" id="pushIconModal"></i>
+                                <div>
+                                    <span class="d-block fw-bold display-notif-status">Verifica in corso...</span>
+                                    <small class="text-muted display-notif-desc">Stato notifiche browser</small>
+                                </div>
+                            </div>
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="pushToggleSwitch"
+                                    >
+                            </div>
+                        </div>
+                        <div id="pushErrorMsg" class="mt-2 small text-danger" style="display:none;"></div>
+                    </div>
+
+                    <!-- SEZIONE FILTRI BACHECA -->
+                    <form action="{{ url_for('main.salva_filtro_notifiche') }}" method="POST">
+                        <h6 class="text-white mb-3">📰 Filtri Bacheca</h6>
+                        <p class="text-muted small mb-3">Seleziona quali notifiche vuoi vedere nella bacheca Home.</p>
+
+                        {% set prefs = current_user.notification_prefs %}
+
+                        <div class="list-group list-group-flush bg-black border border-secondary rounded">
+                            <label
+                                class="list-group-item bg-black text-white border-secondary d-flex justify-content-between align-items-center">
+                                <span>👑 MVP & Risultati</span>
+                                <input class="form-check-input me-1" type="checkbox" name="show_mvp" {{ 'checked' if not
+                                    prefs or prefs.show_mvp else '' }}>
+                            </label>
+                            <label
+                                class="list-group-item bg-black text-white border-secondary d-flex justify-content-between align-items-center">
+                                <span>🔥 Streak & Record</span>
+                                <input class="form-check-input me-1" type="checkbox" name="show_streak" {{ 'checked' if
+                                    not prefs or prefs.show_streak else '' }}>
+                            </label>
+                            <label
+                                class="list-group-item bg-black text-white border-secondary d-flex justify-content-between align-items-center">
+                                <span>🍺 Turni Pizza/Birra</span>
+                                <input class="form-check-input me-1" type="checkbox" name="show_turno" {{ 'checked' if
+                                    not prefs or prefs.show_turno else '' }}>
+                            </label>
+                            <label
+                                class="list-group-item bg-black text-white border-secondary d-flex justify-content-between align-items-center">
+                                <span>👮 Denunce & Multe</span>
+                                <input class="form-check-input me-1" type="checkbox" name="show_denuncia" {{ 'checked'
+                                    if not prefs or prefs.show_denuncia else '' }}>
+                            </label>
+                            <label
+                                class="list-group-item bg-black text-white border-secondary d-flex justify-content-between align-items-center">
+                                <span>🦅 Floppy Eagle</span>
+                                <input class="form-check-input me-1" type="checkbox" name="show_flappy" {{ 'checked' if
+                                    not prefs or prefs.show_flappy else '' }}>
+                            </label>
+                            <label
+                                class="list-group-item bg-black text-white border-secondary d-flex justify-content-between align-items-center">
+                                <span>💸 Top Donatori</span>
+                                <input class="form-check-input me-1" type="checkbox" name="show_donatore" {{ 'checked'
+                                    if not prefs or prefs.show_donatore else '' }}>
+                            </label>
+                            <label
+                                class="list-group-item bg-black text-white border-secondary d-flex justify-content-between align-items-center">
+                                <span>🏥 Certificato Medico</span>
+                                <input class="form-check-input me-1" type="checkbox" name="show_certificato"
+                                    {{ 'checked' if not prefs or prefs.show_certificato else '' }}>
+                            </label>
+                            <label
+                                class="list-group-item bg-black text-white border-0 d-flex justify-content-between align-items-center">
+                                <span>📱 Aggiornamenti App</span>
+                                <input class="form-check-input me-1" type="checkbox" name="show_aggiornamento"
+                                    {{ 'checked' if not prefs or prefs.show_aggiornamento else '' }}>
+                            </label>
+                        </div>
+
+                        <div class="mt-3 text-end">
+                            <button type="button" class="btn btn-sm btn-secondary"
+                                data-bs-dismiss="modal">Annulla</button>
+                            <button type="submit" class="btn btn-sm btn-warning fw-bold">Salva Preferenze</button>
+                        </div>
+                    </form>
+
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Modal Nuovo Aggiornamento (Popup Patchnotes) -->
+    {% if unseen_release %}
+    <div class="modal fade" id="releasePopupModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content bg-dark text-white border-warning">
+                <div class="modal-header border-warning bg-warning bg-opacity-10">
+                    <h5 class="modal-title">
+                        <span class="badge bg-warning text-dark me-2">v{{ unseen_release.version }}</span>
+                        <span class="text-artiglio">{{ unseen_release.title }}</span>
+                    </h5>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <i class="bi bi-megaphone-fill text-warning me-2"></i>
+                        <span class="text-muted small">{{ unseen_release.release_date.strftime('%d/%m/%Y') }}</span>
+                    </div>
+                    <p class="text-white" style="white-space: pre-line;">{{ unseen_release.notes }}</p>
+                </div>
+                <div class="modal-footer border-secondary">
+                    <button type="button" class="btn btn-warning w-100"
+                        onclick="dismissRelease({{ unseen_release.id }})">
+                        <i class="bi bi-check-lg me-1"></i>Ho capito!
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            var releaseModal = new bootstrap.Modal(document.getElementById('releasePopupModal'));
+            releaseModal.show();
+        });
+
+        function dismissRelease(releaseId) {
+            fetch('/api/dismiss-release', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ release_id: releaseId })
+            }).then(function () {
+                bootstrap.Modal.getInstance(document.getElementById('releasePopupModal')).hide();
+            });
+        }
+    </script>
+    {% endif %}
+
+    {% if current_user.is_authenticated %}
+    <nav class="fixed-bottom bottom-nav d-flex justify-content-around align-items-center">
+
+        <a href="{{ url_for('main.multe') }}" class="nav-icon-link {{ 'active' if request.endpoint == 'multe' }}">
+            <i class="bi bi-cash-coin"></i>
+            <span>Multe</span>
+        </a>
+
+        <a href="{{ url_for('main.rosa') }}" class="nav-icon-link {{ 'active' if request.endpoint == 'rosa' }}">
+            <i class="bi bi-people-fill"></i>
+            <span>Rosa</span>
+        </a>
+
+        <a href="{{ url_for('main.home') }}"
+            class="nav-icon-link home-link {{ 'active' if request.endpoint == 'home' }}">
+            <i class="bi bi-house-door-fill"></i>
+        </a>
+
+        <a href="{{ url_for('main.partite') }}" class="nav-icon-link {{ 'active' if request.endpoint == 'partite' }}">
+            <i class="bi bi-list-ul"></i>
+            <span>Partite</span>
+        </a>
+
+        <a href="{{ url_for('main.calendario') }}"
+            class="nav-icon-link {{ 'active' if request.endpoint == 'calendario' }}">
+            <i class="bi bi-calendar-event"></i>
+            <span>Calend.</span>
+        </a>
+
+    </nav>
+    {% endif %}
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js" defer></script>
+
+    <!-- THEME TOGGLE -->
+    <script src="{{ url_for('static', filename='js/theme.js') }}?v=3"></script>
+
+    <!-- NEVE INVERNALE -->
+    <script src="{{ url_for('static', filename='js/snow.js') }}?v=3"></script>
+
+    <!-- SERVICE WORKER & PUSH NOTIFICATIONS -->
+    <script src="{{ url_for('static', filename='js/push-notifications.js') }}?v=3"></script>
+
+    <!-- PWA INSTALL -->
+    <script src="{{ url_for('static', filename='js/pwa-install.js') }}?v=3"></script>
+
+    <script>
+        (function () {
+            'use strict';
+
+            // === LOGGING SYSTEM ===
+            const DEBUG = true;
+            function log(category, message, data) {
+                if (!DEBUG) return;
+                const timestamp = new Date().toLocaleTimeString('it-IT');
+                const prefix = `[${timestamp}][${category}]`;
+                if (data !== undefined) {
+                    console.log(prefix, message, data);
+                } else {
+                    console.log(prefix, message);
+                }
+            }
+
+            // --- 1. CONFIGURAZIONE PAGINE ---
+            const targetUrls = [
+                "{{ url_for('main.multe') }}",       // Index 0
+                "{{ url_for('main.rosa') }}",        // Index 1
+                "/",                            // Index 2 (HOME)
+                "{{ url_for('main.partite') }}",     // Index 3
+                "{{ url_for('main.calendario') }}"   // Index 4
+            ];
+
+            // --- 2. FUNZIONE PER CAPIRE DOVE SIAMO ---
+            function getCurrentIndex() {
+                let path = window.location.pathname;
+                if (path.length > 1 && path.endsWith('/')) path = path.slice(0, -1);
+
+                const homeAliases = ["/", "/index"];
+                if (homeAliases.includes(path)) return 2;
+
+                for (let i = 0; i < targetUrls.length; i++) {
+                    let target = targetUrls[i];
+                    if (target.length > 1 && target.endsWith('/')) target = target.slice(0, -1);
+                    if (path === target) return i;
+                }
+                return -1;
+            }
+
+            // --- 3. ANIMAZIONE VISIVA ---
+            document.addEventListener("DOMContentLoaded", function () {
+                const container = document.getElementById('main-container');
+                const currentIndex = getCurrentIndex();
+
+                // Recupera info navigazione
+                const lastIndexStr = sessionStorage.getItem('lastPageIndex');
+                const lastIndex = lastIndexStr ? parseInt(lastIndexStr) : -1;
+                const navType = sessionStorage.getItem('navType'); // 'swipe' o 'tap' o null
+
+                log('NAV', `Tipo: ${navType || 'direct'}, Da: ${lastIndex} → A: ${currentIndex}`);
+
+                if (container) {
+                    // Rimuovi tutte le classi di animazione precedenti
+                    container.classList.remove('animate-swipe', 'slide-in-right', 'slide-in-left', 'no-animation');
+
+                    // Applica Slide SOLO se è uno SWIPE con cambio pagina valido
+                    if (navType === 'swipe' && currentIndex !== -1 && lastIndex !== -1 && currentIndex !== lastIndex) {
+                        // Aggiungi classe base per animazione
+                        container.classList.add('animate-swipe');
+
+                        if (currentIndex > lastIndex) {
+                            container.classList.add('slide-in-right');
+                            log('ANIM', 'Applicata animazione slide-in-right');
+                        } else {
+                            container.classList.add('slide-in-left');
+                            log('ANIM', 'Applicata animazione slide-in-left');
+                        }
+
+                        // Rimuovi classe animate-swipe dopo animazione per evitare conflitti
+                        container.addEventListener('animationend', function handler() {
+                            container.classList.remove('animate-swipe');
+                            log('ANIM', 'Animazione completata, classe rimossa');
+                            container.removeEventListener('animationend', handler);
+                        }, { once: true });
+
+                    } else {
+                        // TAP o caricamento diretto: NESSUNA animazione (caricamento istantaneo)
+                        container.classList.add('no-animation');
+                        log('ANIM', 'Nessuna animazione (tap/direct)');
+                    }
+                }
+
+                if (currentIndex !== -1) {
+                    sessionStorage.setItem('lastPageIndex', currentIndex);
+                }
+                // Reset navType immediatamente
+                sessionStorage.removeItem('navType');
+            });
+
+            // --- 4. GESTIONE TAP MENU (Salva tipo navigazione) ---
+            document.querySelectorAll('.nav-icon-link').forEach(link => {
+                link.addEventListener('click', function () {
+                    sessionStorage.setItem('navType', 'tap');
+                    log('NAV', 'Click su menu, navType impostato a tap');
+                });
+            });
+
+            // --- 5. GESTIONE GESTURE SWIPE ---
+            let touchStartX = 0;
+            let touchStartY = 0;
+            let touchStartTime = 0;
+            const minSwipeDistance = 70; // Aumentato per evitare swipe accidentali
+            const maxSwipeTime = 400; // Max tempo per considerarlo uno swipe veloce
+
+            document.addEventListener('touchstart', e => {
+                // Ignora se si sta interagendo con elementi interattivi
+                const target = e.target;
+                if (target.closest('.modal, .dropdown-menu, .form-control, .btn, input, textarea, select, a[href]')) {
+                    return;
+                }
+
+                touchStartX = e.changedTouches[0].screenX;
+                touchStartY = e.changedTouches[0].screenY;
+                touchStartTime = Date.now();
+            }, { passive: true });
+
+            document.addEventListener('touchend', e => {
+                // Ignora se si sta interagendo con elementi interattivi
+                const target = e.target;
+                if (target.closest('.modal, .dropdown-menu, .form-control, .btn, input, textarea, select')) {
+                    return;
+                }
+
+                const touchEndX = e.changedTouches[0].screenX;
+                const touchEndY = e.changedTouches[0].screenY;
+                const touchEndTime = Date.now();
+
+                handleSwipe(touchEndX, touchEndY, touchEndTime);
+            }, { passive: true });
+
+            function handleSwipe(touchEndX, touchEndY, touchEndTime) {
+                const distanceX = touchEndX - touchStartX;
+                const distanceY = touchEndY - touchStartY;
+                const timeDiff = touchEndTime - touchStartTime;
+                const currentIndex = getCurrentIndex();
+
+                // Verifica validità swipe
+                if (currentIndex === -1) return;
+
+                // Swipe deve essere prevalentemente orizzontale
+                if (Math.abs(distanceY) > Math.abs(distanceX) * 0.5) {
+                    log('SWIPE', 'Ignorato: movimento verticale prevalente');
+                    return;
+                }
+
+                // Deve essere abbastanza lungo e veloce
+                if (Math.abs(distanceX) < minSwipeDistance) return;
+                if (timeDiff > maxSwipeTime) {
+                    log('SWIPE', 'Ignorato: troppo lento', { time: timeDiff });
+                    return;
+                }
+
+                let targetUrl = null;
+
+                // Swipe a SINISTRA -> Vai Avanti (Next Index)
+                if (distanceX < 0) {
+                    if (currentIndex < targetUrls.length - 1) {
+                        targetUrl = targetUrls[currentIndex + 1];
+                    }
+                }
+                // Swipe a DESTRA -> Vai Indietro (Prev Index)
+                if (distanceX > 0) {
+                    if (currentIndex > 0) {
+                        targetUrl = targetUrls[currentIndex - 1];
+                    }
+                }
+
+                if (targetUrl) {
+                    sessionStorage.setItem('navType', 'swipe');
+                    log('SWIPE', `Navigazione swipe verso: ${targetUrl}`, { distance: distanceX, time: timeDiff });
+
+                    if (typeof window.navigateTo === 'function') {
+                        // Usa il router SPA, ma aggiorna prima l'highlight della navbar manualente
+                        document.querySelectorAll('.nav-icon-link').forEach(l => l.classList.remove('active'));
+                        document.querySelectorAll('.nav-icon-link').forEach(l => {
+                            if (l.getAttribute('href') && targetUrl.includes(l.getAttribute('href'))) {
+                                l.classList.add('active');
+                            }
+                        });
+                        window.navigateTo(targetUrl);
+                    } else {
+                        window.location.href = targetUrl;
+                    }
+                }
+            }
+
+        })();
+    </script>
+
+    <!-- PAGE TRANSITIONS (FADE & SWIPE) -->
+
+    <div class="page-transition-overlay" id="pageTransition"></div>
+    <script src="{{ url_for('static', filename='js/page-transitions.js') }}?v=3"></script>
+
+
+    <!-- Anti Double-Submit -->
+    <script src="{{ url_for('static', filename='js/anti-double-submit.js') }}?v=3"></script>
+
+
+
+    <!-- SISTEMA TOAST PREMIUM -->
+    <script src="{{ url_for('static', filename='js/toast.js') }}?v=3"></script>
+
+    <!-- PULL TO REFRESH -->
+    <script src="{{ url_for('static', filename='js/pull-to-refresh.js') }}?v=3"></script>
+
+    <!-- ANIMAZIONI INTERATTIVE -->
+    <script src="{{ url_for('static', filename='js/animations.js') }}?v=3"></script>
+
+    <!-- Moduli Pagine SPA -->
+    <script src="{{ url_for('static', filename='js/pages/rosa.js') }}?v=3"></script>
+    <script src="{{ url_for('static', filename='js/pages/dashboard.js') }}?v=3"></script>
+    <script src="{{ url_for('static', filename='js/pages/partite.js') }}?v=3"></script>
+    <script src="{{ url_for('static', filename='js/pages/multe.js') }}?v=3"></script>
+    <script src="{{ url_for('static', filename='js/pages/aggiornamenti.js') }}?v=3"></script>
+    <script src="{{ url_for('static', filename='js/pages/admin-feedback.js') }}?v=3"></script>
+    <script src="{{ url_for('static', filename='js/pages/video.js') }}?v=3"></script>
+    <script src="{{ url_for('static', filename='js/pages/calendario.js') }}?v=3"></script>
+    <script src="{{ url_for('static', filename='js/pages/stats.js') }}?v=3"></script>
+    <script src="{{ url_for('static', filename='js/pages/game-ui.js') }}?v=3" charset="utf-8"></script>
+    <script src="{{ url_for('static', filename='js/pages/game.js') }}?v=3" charset="utf-8"></script>
+
+    {% block extra_js %}{% endblock %}
+
+</body>
+
+</html>

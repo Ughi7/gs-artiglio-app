@@ -1,0 +1,9 @@
+.hover-effect {
+        transition: transform 0.2s;
+    }
+
+    .hover-effect:hover {
+        transform: translateY(-5px);
+        background-color: #212529 !important;
+        /* Un po' più chiaro del dark base */
+    }

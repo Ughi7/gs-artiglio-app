@@ -1,0 +1,551 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-2">
+    <h2 class="text-artiglio mb-0">PARTITE</h2>
+    <div class="d-flex gap-2">
+        <!-- Bottone Statistiche -->
+        <a href="{{ url_for('main.stats_partite') }}" class="btn btn-outline-info btn-sm">
+            <i class="bi bi-graph-up"></i>
+        </a>
+        <!-- Pulsante Info -->
+        <button class="btn btn-outline-info btn-sm" type="button" data-bs-toggle="collapse"
+            data-bs-target="#infoPartite">
+            <i class="bi bi-info-circle"></i>
+        </button>
+        {% if current_user.is_admin %}
+        <button class="btn btn-warning rounded-pill shadow fw-bold" data-bs-toggle="modal"
+            data-bs-target="#addMatchModal">
+            <i class="bi bi-plus-lg"></i> Nuova
+        </button>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Info Box Collapsibile -->
+<div class="collapse mb-3" id="infoPartite">
+    <div class="alert alert-info" role="alert">
+        <h6 class="alert-heading mb-2">
+            <i class="bi bi-info-circle-fill me-2"></i>Come funziona Partite?
+        </h6>
+        <p class="mb-2 small">
+            Gestisci il calendario partite e vota l'MVP! 🏐
+        </p>
+        <ul class="small mb-0">
+            <li><strong>DA DISPUTARE</strong>: vedi le partite future con data, ora e luogo</li>
+            <li><strong>Segna Assenza</strong>: indica se non potrai essere presente</li>
+            <li><strong>Link Maps</strong>: tocca l'indirizzo trasferta per aprire Google Maps</li>
+            <li><strong>GIOCATE / MVP</strong>: storico partite con votazione MVP</li>
+            <li><strong>Vota ORA</strong>: scegli il miglior giocatore (entro Martedì!)</li>
+            <li><strong>Tabellino</strong>: visualizza statistiche di squadra e individuali</li>
+        </ul>
+    </div>
+</div>
+
+<ul class="nav nav-pills nav-fill mb-4" id="pills-tab" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active fw-bold" id="pills-future-tab" data-bs-toggle="pill"
+            data-bs-target="#pills-future" type="button" role="tab">
+            <i class="bi bi-calendar-check"></i> DA DISPUTARE
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link fw-bold" id="pills-past-tab" data-bs-toggle="pill" data-bs-target="#pills-past"
+            type="button" role="tab">
+            <i class="bi bi-clock-history"></i> GIOCATE / MVP
+        </button>
+    </li>
+</ul>
+
+<div class="tab-content" id="pills-tabContent">
+
+    <div class="tab-pane fade show active" id="pills-future" role="tabpanel">
+        {% if future %}
+        <!-- Container partite future -->
+        <div class="future-matches-container">
+
+            {% for evento in future %}
+            <div class="mb-3">
+
+                <!-- Card partita -->
+                <div class="card bg-dark border-secondary shadow-sm ms-2">
+                    <div class="card-body">
+                        <!-- Header con countdown -->
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <div>
+                                <!-- Countdown badge -->
+                                {% set days_until = (evento.date_start.date() - now.date()).days %}
+                                <span class="badge {{ 'bg-danger' if days_until <= 2 else 'bg-info' }} mb-2">
+                                    {% if days_until == 0 %}
+                                    🔥 OGGI!
+                                    {% elif days_until == 1 %}
+                                    ⏰ DOMANI
+                                    {% else %}
+                                    📅 Tra {{ days_until }} giorni
+                                    {% endif %}
+                                </span>
+
+                                <h4 class="text-white mb-1">
+                                    <span class="text-muted small">VS</span> {{ evento.opponent_name }}
+                                </h4>
+                                {% if evento.is_home %}
+                                <span class="badge bg-artiglio text-dark"><i class="bi bi-house-door-fill"></i>
+                                    CASA</span>
+                                <small class="text-muted ms-2">{{ evento.location }}</small>
+                                {% else %}
+                                <span class="badge bg-secondary"><i class="bi bi-bus-front-fill"></i> TRASFERTA</span>
+                                <div class="mt-1">
+                                    <a href="https://www.google.com/maps/search/?api=1&query={{ evento.location }}"
+                                        target="_blank" class="text-info text-decoration-none small">
+                                        <i class="bi bi-geo-alt-fill"></i> {{ evento.location }}
+                                    </a>
+                                </div>
+                                {% endif %}
+                            </div>
+
+                            <div class="d-flex flex-column align-items-end gap-2">
+                                <div class="border border-warning rounded p-2 text-center bg-black partite-orario-white"
+                                    style="min-width: 70px;">
+                                    <div class="text-artiglio fw-bold" style="font-size: 0.8rem;">{{
+                                        evento.date_start.strftime('%d/%m') }}</div>
+                                    <div class="text-white h5 mb-0 fw-bold">{{ evento.date_start.strftime('%H:%M') }}
+                                    </div>
+                                </div>
+
+                                {% if current_user.is_admin %}
+                                <div class="btn-group btn-group-sm">
+                                    <button class="btn btn-outline-secondary" data-bs-toggle="modal"
+                                        data-bs-target="#editMatchModal" data-id="{{ evento.id }}"
+                                        data-opponent="{{ evento.opponent_name }}" data-location="{{ evento.location }}"
+                                        data-home="{{ 'casa' if evento.is_home else 'trasferta' }}"
+                                        data-date="{{ evento.date_start.strftime('%Y-%m-%d') }}"
+                                        data-time="{{ evento.date_start.strftime('%H:%M') }}"
+                                        data-friendly="{{ 'true' if evento.is_friendly else 'false' }}">
+                                        <i class="bi bi-pencil-fill"></i>
+                                    </button>
+                                    <a href="/elimina_partita/{{ evento.id }}" class="btn btn-outline-danger confirm-delete-match"
+                                        data-confirm-message="Sicuro di voler eliminare questa partita?">
+                                        <i class="bi bi-trash-fill"></i>
+                                    </a>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <hr class="border-secondary my-3">
+
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div class="text-white-50 small">
+                                {% if evento.is_absent(current_user.id) %}
+                                <span class="text-danger fw-bold"><i class="bi bi-x-circle-fill"></i> SEI ASSENTE</span>
+                                {% else %}
+                                <span class="text-success fw-bold"><i class="bi bi-check-circle-fill"></i>
+                                    PRESENTE</span>
+                                {% endif %}
+                                <span class="mx-2">|</span>
+                                <span class="text-white fw-bold">{{ evento.count_presenti() }}</span> Attivi
+                            </div>
+
+                            <a href="/segnala_assenza/{{ evento.id }}"
+                                class="btn btn-sm {{ 'btn-danger' if not evento.is_absent(current_user.id) else 'btn-outline-light' }}">
+                                {% if evento.is_absent(current_user.id) %} Annulla Assenza {% else %} 👎 Segna Assenza
+                                {% endif
+                                %}
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="text-center py-5 text-muted">
+            <i class="bi bi-calendar-x display-4 d-block mb-3"></i>
+            <p class="mt-3">Nessuna partita futura in programma.</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="tab-pane fade" id="pills-past" role="tabpanel">
+        {% for evento in past %}
+        <div class="card bg-dark border-secondary mb-3 shadow">
+
+            <div class="card-header bg-black border-bottom border-secondary text-center py-3 position-relative">
+
+                <div class="d-flex justify-content-center align-items-center gap-2 mb-2">
+                    {% if evento.is_friendly %}
+                    <span class="badge bg-info fw-bold shadow-sm">AMICHEVOLE</span>
+                    {% elif evento.sets_us > evento.sets_them %}
+                    <span class="badge bg-success fw-bold shadow-sm">VITTORIA</span>
+                    {% elif evento.sets_us < evento.sets_them %} <span class="badge bg-danger fw-bold shadow-sm">
+                        SCONFITTA</span>
+                        {% endif %}
+                        <small class="text-muted text-uppercase">{{ evento.date_start.strftime('%d/%m/%Y') }}</small>
+                </div>
+
+                <div class="d-flex justify-content-center align-items-center gap-4">
+                    <div class="text-end">
+                        <div class="display-3 fw-bold text-artiglio">{{ evento.sets_us }}</div>
+                        <small class="text-white-50 fw-bold">ARTIGLIO</small>
+                    </div>
+                    <div class="display-6 text-muted">-</div>
+                    <div class="text-start">
+                        <div class="display-3 fw-bold text-white">{{ evento.sets_them }}</div>
+                        <small class="text-white-50 fw-bold text-uppercase">{{ evento.opponent_name }}</small>
+                    </div>
+                </div>
+
+                {% if current_user.is_admin %}
+                <div class="position-absolute top-0 end-0 m-2 btn-group btn-group-sm">
+                    <button class="btn btn-outline-secondary" data-bs-toggle="modal"
+                        data-bs-target="#scoreModal{{ evento.id }}" title="Modifica Punteggio">
+                        <i class="bi bi-pencil"></i>
+                    </button>
+                    <a href="/elimina_partita/{{ evento.id }}" class="btn btn-outline-danger confirm-delete-match"
+                        data-confirm-message="Sicuro di voler eliminare questa partita dallo storico?"
+                        title="Elimina Partita">
+                        <i class="bi bi-trash-fill"></i>
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+
+            <div class="card-body text-center">
+
+                <div class="mb-3">
+                    <button class="btn btn-outline-info btn-sm rounded-pill" data-bs-toggle="modal"
+                        data-bs-target="#statsModal{{ evento.id }}">
+                        <i class="bi bi-clipboard-data"></i>
+                        {% if current_user.is_admin or current_user.is_scout %} Gestisci Statistiche {% else %}
+                        Visualizza Tabellino {% endif %}
+                    </button>
+                </div>
+
+                {% if not evento.is_friendly %}
+                {% if evento.mvp_id %}
+                <h6 class="text-warning fw-bold letter-spacing-2 mb-3">🏆 MATCH MVP</h6>
+                <div class="avatar mx-auto mb-2 bg-warning text-dark fw-bold d-flex align-items-center justify-content-center rounded-circle shadow-lg"
+                    style="width: 70px; height: 70px; border: 3px solid #fff;">
+                    {{ evento.mvp.numero_maglia }}
+                </div>
+                <h4 class="text-white fw-bold">{{ evento.mvp.soprannome if evento.mvp.soprannome else
+                    evento.mvp.nome_completo }}</h4>
+                <p class="text-muted small">{{ evento.mvp.ruolo_volley }}</p>
+
+                {% elif evento.voting_closed %}
+                <h6 class="text-secondary fw-bold mb-3">VOTAZIONI CONCLUSE</h6>
+                <div class="alert alert-dark border-secondary text-muted py-3">
+                    <i class="bi bi-hourglass-bottom display-6 d-block mb-2"></i>
+                    Nessun MVP eletto per questa partita.
+                </div>
+
+                {% else %}
+                <h6 class="text-white-50 fw-bold mb-3">VOTAZIONI MVP APERTE</h6>
+
+                {% if evento.has_voted(current_user.id) %}
+                <div class="alert alert-success bg-opacity-25 bg-success border-success text-white py-2">
+                    <i class="bi bi-check-circle-fill"></i> Hai già votato.
+                    <br><small>Risultati martedì alle 12:00</small>
+                </div>
+                {% else %}
+                <p class="small text-muted mb-3">Scegli il migliore in campo entro Martedì!</p>
+                <button class="btn btn-outline-warning w-100 rounded-pill" data-bs-toggle="modal"
+                    data-bs-target="#voteModal{{ evento.id }}">
+                    VOTA ORA
+                </button>
+                {% endif %}
+                {% endif %}
+                {% else %}
+                <div class="alert alert-info bg-opacity-25 border-info text-info py-2">
+                    <i class="bi bi-people-fill"></i> Partita amichevole - MVP non previsto
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="modal fade" id="voteModal{{ evento.id }}" tabindex="-1">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content bg-dark border-warning text-white">
+                    <div class="modal-header border-secondary">
+                        <h5 class="modal-title text-warning">Vota MVP</h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form action="{{ url_for('main.vote_mvp', event_id=evento.id) }}" method="POST">
+                            <div class="list-group">
+                                {% for player in players %}
+                                <label
+                                    class="list-group-item bg-black border-secondary text-white d-flex justify-content-between align-items-center">
+                                    <span>
+                                        <span class="badge bg-secondary me-2">{{ player.numero_maglia }}</span>
+                                        {{ player.soprannome if player.soprannome else player.nome_completo }}
+                                    </span>
+                                    <input class="form-check-input me-1" type="radio" name="voted_user_id"
+                                        value="{{ player.id }}" required>
+                                </label>
+                                {% endfor %}
+                            </div>
+                            <button type="submit" class="btn btn-warning w-100 fw-bold mt-3">INVIA VOTO</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {% if current_user.is_admin %}
+        <div class="modal fade" id="scoreModal{{ evento.id }}" tabindex="-1">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content bg-dark border-secondary text-white">
+                    <div class="modal-header border-secondary">
+                        <h5 class="modal-title">Imposta Risultato</h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form action="/salva_risultato" method="POST">
+                            <input type="hidden" name="event_id" value="{{ evento.id }}">
+                            <div class="row text-center align-items-center mb-3">
+                                <div class="col">
+                                    <label class="text-artiglio fw-bold">ARTIGLIO</label>
+                                    <input type="number" name="sets_us"
+                                        class="form-control bg-black text-white text-center fw-bold fs-4"
+                                        value="{{ evento.sets_us }}">
+                                </div>
+                                <div class="col-1 fw-bold">-</div>
+                                <div class="col">
+                                    <label class="text-white-50 text-truncate">{{ evento.opponent_name }}</label>
+                                    <input type="number" name="sets_them"
+                                        class="form-control bg-black text-white text-center fw-bold fs-4"
+                                        value="{{ evento.sets_them }}">
+                                </div>
+                            </div>
+                            <button type="submit" class="btn btn-primary w-100">SALVA</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Modal Statistiche Partita -->
+        <div class="modal fade" id="statsModal{{ evento.id }}" tabindex="-1">
+            <div class="modal-dialog modal-dialog-centered modal-xl">
+                <div class="modal-content bg-dark border-info text-white">
+                    <div class="modal-header border-secondary">
+                        <h5 class="modal-title">
+                            <i class="bi bi-clipboard-data text-info"></i> Statistiche Partita - {{ evento.opponent_name
+                            }}
+                        </h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form action="/salva_statistiche" method="POST">
+                            <input type="hidden" name="event_id" value="{{ evento.id }}">
+
+                            <!-- Statistiche di Squadra -->
+                            <div class="card bg-black border-secondary mb-4">
+                                <div class="card-header">
+                                    <h6 class="text-info mb-0">Statistiche di Squadra</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-md-4 mb-3">
+                                            <label class="form-label text-muted small">Battute Sbagliate Totali</label>
+                                            <input type="number" name="total_missed_serves"
+                                                class="form-control bg-dark text-white border-secondary"
+                                                value="{{ evento.total_missed_serves }}" min="0" {% if not
+                                                (current_user.is_admin or current_user.is_scout) %}disabled{% endif %}>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Statistiche Individuali -->
+                            <div class="card bg-black border-secondary">
+                                <div class="card-header">
+                                    <h6 class="text-info mb-0">Statistiche Giocatori</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="table-responsive">
+                                        <table class="table table-dark table-sm">
+                                            <thead>
+                                                <tr class="text-center">
+                                                    <th class="text-start">Giocatore</th>
+                                                    <th>Punti</th>
+                                                    <th>Ace</th>
+                                                    <th>Muri</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {% for player in players %}
+                                                {% set stat = evento.stats|selectattr('user_id', 'equalto',
+                                                player.id)|first %}
+                                                <tr class="text-center">
+                                                    <td class="text-start">
+                                                        <span class="badge bg-secondary me-1">{{ player.numero_maglia
+                                                            }}</span>
+                                                        {{ player.soprannome if player.soprannome else
+                                                        player.nome_completo }}
+                                                    </td>
+                                                    <td>
+                                                        <input type="number" name="points_{{ player.id }}"
+                                                            class="form-control form-control-sm bg-dark text-white border-secondary text-center"
+                                                            value="{{ stat.points if stat else 0 }}" min="0"
+                                                            style="width: 70px; display: inline-block;" {% if not
+                                                            (current_user.is_admin or current_user.is_scout)
+                                                            %}disabled{% endif %}>
+                                                    </td>
+                                                    <td>
+                                                        <input type="number" name="aces_{{ player.id }}"
+                                                            class="form-control form-control-sm bg-dark text-white border-secondary text-center"
+                                                            value="{{ stat.aces if stat else 0 }}" min="0"
+                                                            style="width: 70px; display: inline-block;" {% if not
+                                                            (current_user.is_admin or current_user.is_scout)
+                                                            %}disabled{% endif %}>
+                                                    </td>
+                                                    <td>
+                                                        <input type="number" name="blocks_{{ player.id }}"
+                                                            class="form-control form-control-sm bg-dark text-white border-secondary text-center"
+                                                            value="{{ stat.blocks if stat else 0 }}" min="0"
+                                                            style="width: 70px; display: inline-block;" {% if not
+                                                            (current_user.is_admin or current_user.is_scout)
+                                                            %}disabled{% endif %}>
+                                                    </td>
+                                                </tr>
+                                                {% endfor %}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {% if current_user.is_admin or current_user.is_scout %}
+                            <button type="submit" class="btn btn-info w-100 fw-bold mt-3">
+                                <i class="bi bi-save"></i> SALVA STATISTICHE
+                            </button>
+                            {% endif %}
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {% else %}
+        <div class="text-center py-5 text-muted">Nessuna partita giocata ancora.</div>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="modal fade" id="addMatchModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content bg-dark border-secondary text-white">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title text-artiglio">Nuova Partita</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form action="/crea_partita" method="POST">
+                    <div class="mb-3">
+                        <label class="form-label text-muted">Avversario</label>
+                        <input type="text" name="opponent_name"
+                            class="form-control bg-black text-white border-secondary" required
+                            placeholder="Es: Modena Volley">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-muted">Dove si gioca?</label>
+                        <select name="casa_trasferta" class="form-select bg-black text-white border-secondary"
+                            id="locationSelector">
+                            <option value="casa">In Casa (PalaArtiglio)</option>
+                            <option value="trasferta">Trasferta</option>
+                        </select>
+                    </div>
+                    <div class="mb-3" id="addressDiv" style="display:none;">
+                        <label class="form-label text-muted">Indirizzo Palestra (per Maps)</label>
+                        <input type="text" name="location" class="form-control bg-black text-white border-secondary"
+                            placeholder="Via Roma 1, Milano">
+                    </div>
+                    <div class="row">
+                        <div class="col-7 mb-3">
+                            <label class="form-label text-muted">Data</label>
+                            <input type="date" name="data" class="form-control bg-black text-white border-secondary"
+                                required>
+                        </div>
+                        <div class="col-5 mb-3">
+                            <label class="form-label text-muted">Ora</label>
+                            <input type="time" name="ora" class="form-control bg-black text-white border-secondary"
+                                required>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" name="is_friendly" id="addFriendlySwitch">
+                            <label class="form-check-label text-info" for="addFriendlySwitch">
+                                <i class="bi bi-people-fill"></i> Partita Amichevole
+                            </label>
+                            <small class="d-block text-muted">Le amichevoli non influiscono su statistiche e MVP</small>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-warning w-100 fw-bold">SALVA PARTITA</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="editMatchModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content bg-dark border-secondary text-white">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title text-white">Modifica Partita</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form action="/modifica_partita" method="POST">
+                    <input type="hidden" name="event_id" id="editId">
+                    <div class="mb-3">
+                        <label class="form-label text-muted">Avversario</label>
+                        <input type="text" name="opponent_name" id="editOpponent"
+                            class="form-control bg-black text-white border-secondary" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-muted">Dove?</label>
+                        <select name="casa_trasferta" id="editHome"
+                            class="form-select bg-black text-white border-secondary">
+                            <option value="casa">In Casa</option>
+                            <option value="trasferta">Trasferta</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-muted">Luogo / Indirizzo</label>
+                        <input type="text" name="location" id="editLocation"
+                            class="form-control bg-black text-white border-secondary">
+                    </div>
+                    <div class="row">
+                        <div class="col-7 mb-3">
+                            <label class="form-label text-muted">Data</label>
+                            <input type="date" name="data" id="editDate"
+                                class="form-control bg-black text-white border-secondary" required>
+                        </div>
+                        <div class="col-5 mb-3">
+                            <label class="form-label text-muted">Ora</label>
+                            <input type="time" name="ora" id="editTime"
+                                class="form-control bg-black text-white border-secondary" required>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" name="is_friendly" id="editFriendlySwitch">
+                            <label class="form-check-label text-info" for="editFriendlySwitch">
+                                <i class="bi bi-people-fill"></i> Partita Amichevole
+                            </label>
+                            <small class="d-block text-muted">Le amichevoli non influiscono su statistiche e MVP</small>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100 fw-bold">SALVA MODIFICHE</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

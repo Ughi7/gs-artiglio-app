@@ -1,0 +1,220 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+
+            <div class="text-center mb-4">
+                <h2 class="text-warning">🎨 Assegna Skin</h2>
+                <p class="text-muted">Gestisci le skin speciali dei giocatori</p>
+            </div>
+
+            {% if risultati %}
+            <div class="alert alert-success mb-4">
+                <i class="bi bi-check-circle-fill me-2"></i>
+                <strong>Operazione completata!</strong>
+            </div>
+            <div class="row g-3 mb-4">
+                {% for r in risultati %}
+                <div class="col-md-6">
+                    <div class="card bg-dark border-secondary shadow-sm">
+                        <div class="card-body d-flex align-items-center">
+                            <span style="font-size: 2rem;" class="me-3">{{ r.icon }}</span>
+                            <div>
+                                <strong class="text-white">{{ r.user }}</strong>
+                                <br>
+                                <small class="text-muted">{{ r.skin }}</small>
+                            </div>
+                            <div class="ms-auto">
+                                {% if 'SBLOCCATA' in r.status %}
+                                <span class="badge bg-success">🎉 {{ r.status }}</span>
+                                {% elif r.status == 'Assegnata!' %}
+                                <span class="badge bg-success">✅ {{ r.status }}</span>
+                                {% elif 'Counter' in r.status %}
+                                <span class="badge bg-info">{{ r.status }}</span>
+                                {% else %}
+                                <span class="badge bg-secondary">⚠️ {{ r.status }}</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            <hr class="border-secondary mb-4">
+            {% endif %}
+
+            {% for skin_id, skin in skins.items() %}
+            {% if skin.type == 'counter' %}
+            <!-- ===== SEZIONE COUNTER ===== -->
+            <div class="card bg-dark border-warning shadow-lg mb-4">
+                <div class="card-header bg-transparent border-warning">
+                    <div class="d-flex align-items-center">
+                        <span style="font-size: 2rem;" class="me-3">{{ skin.icon }}</span>
+                        <div>
+                            <h5 class="text-warning mb-0">{{ skin.name }}</h5>
+                            <small class="text-muted">{{ skin.event }} — Soglia: {{ skin.threshold }}</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-dark table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Giocatore</th>
+                                    <th class="text-center">Progresso</th>
+                                    <th class="text-center">Stato</th>
+                                    <th class="text-center">Azioni</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for user in users %}
+                                {% set count = user.counters.get(skin_id, 0) %}
+                                <tr>
+                                    <td class="align-middle">
+                                        <strong>{{ user.nome }}</strong>
+                                        {% if user.notes %}
+                                        <div class="mt-1">
+                                            <a class="text-info small text-decoration-none" data-bs-toggle="collapse"
+                                                href="#notes-{{ user.id }}-{{ skin_id }}" role="button"
+                                                aria-expanded="false">
+                                                Vedi {{ user.notes|length }} segnalazioni <i
+                                                    class="bi bi-chevron-down"></i>
+                                            </a>
+                                            <div class="collapse mt-2" id="notes-{{ user.id }}-{{ skin_id }}">
+                                                <ul class="list-unstyled small mb-0">
+                                                    {% for n in user.notes %}
+                                                    <li class="mb-2 border-start border-info ps-2 position-relative">
+                                                        <div class="d-flex justify-content-between align-items-start">
+                                                            <div style="max-width: 80%;">
+                                                                <span class="text-muted" style="font-size:0.75rem;">{{
+                                                                    n.date }}</span><br>
+                                                                <span class="text-light text-break">{{ n.note }}</span>
+                                                            </div>
+                                                            <div class="btn-group btn-group-sm ms-2 flex-shrink-0">
+                                                                <button type="button"
+                                                                    class="btn btn-link text-warning p-0 me-2"
+                                                                    onclick="document.getElementById('edit-form-{{ user.id }}-{{ skin_id }}-{{ loop.index0 }}').classList.toggle('d-none');"
+                                                                    title="Modifica">
+                                                                    <i class="bi bi-pencil-square"></i>
+                                                                </button>
+                                                                <form method="POST" class="d-inline m-0"
+                                                                    onsubmit="return confirm('Sicuro di voler eliminare questa nota?');">
+                                                                    <input type="hidden" name="action"
+                                                                        value="delete_note">
+                                                                    <input type="hidden" name="user_id"
+                                                                        value="{{ user.id }}">
+                                                                    <input type="hidden" name="note_index"
+                                                                        value="{{ loop.index0 }}">
+                                                                    <button type="submit"
+                                                                        class="btn btn-link text-danger p-0"
+                                                                        title="Elimina">
+                                                                        <i class="bi bi-trash"></i>
+                                                                    </button>
+                                                                </form>
+                                                            </div>
+                                                        </div>
+                                                        <form method="POST" class="d-none mt-2"
+                                                            id="edit-form-{{ user.id }}-{{ skin_id }}-{{ loop.index0 }}">
+                                                            <input type="hidden" name="action" value="edit_note">
+                                                            <input type="hidden" name="user_id" value="{{ user.id }}">
+                                                            <input type="hidden" name="note_index"
+                                                                value="{{ loop.index0 }}">
+                                                            <div class="input-group input-group-sm">
+                                                                <input type="text" name="new_text"
+                                                                    class="form-control bg-dark text-white border-secondary"
+                                                                    value="{{ n.note }}" required>
+                                                                <button type="submit" class="btn btn-success"><i
+                                                                        class="bi bi-check2"></i> Salva</button>
+                                                            </div>
+                                                        </form>
+                                                    </li>
+                                                    {% endfor %}
+                                                </ul>
+                                            </div>
+                                        </div>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center align-middle">
+                                        <div class="d-flex align-items-center justify-content-center gap-1">
+                                            {% for i in range(skin.threshold) %}
+                                            {% if i < count %} <span style="font-size: 1.3rem;">{{ skin.icon }}</span>
+                                                {% else %}
+                                                <span style="font-size: 1.3rem; opacity: 0.2;">{{ skin.icon }}</span>
+                                                {% endif %}
+                                                {% endfor %}
+                                                <span class="badge bg-secondary ms-2">{{ count }}/{{ skin.threshold
+                                                    }}</span>
+                                        </div>
+                                    </td>
+                                    <td class="text-center align-middle">
+                                        {% if user.skins.get(skin_id) %}
+                                        <span class="badge bg-success">✅ Sbloccata</span>
+                                        {% elif count >= skin.threshold %}
+                                        <span class="badge bg-warning text-dark">⚡ Da sbloccare</span>
+                                        {% else %}
+                                        <span class="badge bg-dark border border-secondary">🔒 {{ count }}/{{
+                                            skin.threshold }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center align-middle">
+                                        <div class="btn-group btn-group-sm">
+                                            <form method="POST" class="d-inline-block me-1 mb-1">
+                                                <input type="hidden" name="action" value="increment_counter">
+                                                <input type="hidden" name="skin_id" value="{{ skin_id }}">
+                                                <input type="hidden" name="user_id" value="{{ user.id }}">
+                                                <div class="input-group input-group-sm">
+                                                    <input type="text" name="note"
+                                                        class="form-control bg-dark text-white border-secondary"
+                                                        placeholder="Descrizione bug..." style="width: 140px;"
+                                                        maxlength="100">
+                                                    <button type="submit" class="btn btn-outline-success"
+                                                        title="Aggiungi segnalazione">
+                                                        <i class="bi bi-plus-lg"></i>
+                                                    </button>
+                                                </div>
+                                            </form>
+                                            <form method="POST" class="d-inline-block me-1 mb-1">
+                                                <input type="hidden" name="action" value="decrement_counter">
+                                                <input type="hidden" name="skin_id" value="{{ skin_id }}">
+                                                <input type="hidden" name="user_id" value="{{ user.id }}">
+                                                <button type="submit" class="btn btn-outline-danger btn-sm"
+                                                    title="Rimuovi segnalazione" {% if count==0 %}disabled{% endif %}>
+                                                    <i class="bi bi-dash-lg"></i>
+                                                </button>
+                                            </form>
+                                            {% if not user.skins.get(skin_id) %}
+                                            <form method="POST" class="d-inline-block mb-1">
+                                                <input type="hidden" name="action" value="assign">
+                                                <input type="hidden" name="skin_id" value="{{ skin_id }}">
+                                                <input type="hidden" name="user_ids" value="{{ user.id }}">
+                                                <button type="submit" class="btn btn-outline-warning btn-sm"
+                                                    title="Assegna direttamente">
+                                                    <i class="bi bi-unlock"></i>
+                                                </button>
+                                            </form>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+            {% endfor %}
+
+            <div class="text-center mt-3">
+                <a href="{{ url_for('main.home') }}" class="btn btn-outline-secondary">
+                    <i class="bi bi-house-fill me-2"></i>Torna alla Home
+                </a>
+            </div>
+
+        </div>
+    </div>
+</div>
+{% endblock %}

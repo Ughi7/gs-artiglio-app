@@ -1,0 +1,106 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container-fluid px-3">
+
+    <div class="d-flex align-items-center justify-content-between mb-4">
+        <h4 class="mb-0">
+            <i class="bi bi-inbox-fill text-artiglio me-2"></i>
+            Feedback Utenti
+        </h4>
+        <a href="{{ url_for('admin_custom.aggiornamenti') }}" class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i>Torna
+        </a>
+    </div>
+
+    <!-- Filtri -->
+    <div class="btn-group mb-3" role="group">
+        <button type="button" class="btn btn-outline-secondary active feedback-filter-btn" data-filter-type="all">Tutti</button>
+        <button type="button" class="btn btn-outline-danger feedback-filter-btn" data-filter-type="bug">🐛 Bug</button>
+        <button type="button" class="btn btn-outline-info feedback-filter-btn" data-filter-type="proposal">💡 Proposte</button>
+    </div>
+
+    {% if feedbacks %}
+    <div class="list-group" id="feedbackList">
+        {% for fb in feedbacks %}
+        <div class="list-group-item bg-dark border-secondary mb-2 rounded feedback-item"
+            data-type="{{ fb.feedback_type }}" data-status="{{ fb.status }}">
+            <div class="d-flex justify-content-between align-items-start">
+                <div class="flex-grow-1">
+                    <div class="d-flex align-items-center mb-1">
+                        {% if fb.feedback_type == 'bug' %}
+                        <span class="badge bg-danger me-2"><i class="bi bi-bug"></i> Bug</span>
+                        {% else %}
+                        <span class="badge bg-info me-2"><i class="bi bi-lightbulb"></i> Proposta</span>
+                        {% endif %}
+                        <strong class="text-white">{{ fb.title }}</strong>
+                    </div>
+                    <p class="text-muted small mb-2">{{ fb.description }}</p>
+                    <div class="d-flex gap-3 text-muted small">
+                        <span><i class="bi bi-person me-1"></i>{{ fb.user.soprannome or fb.user.nome_completo }}</span>
+                        <span><i class="bi bi-calendar me-1"></i>{{ fb.created_at.strftime('%d/%m/%Y %H:%M') }}</span>
+                        {% if fb.media_path %}
+                        <a href="/static/{{ fb.media_path }}" target="_blank" class="text-warning">
+                            <i class="bi bi-paperclip me-1"></i>Allegato
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="d-flex flex-column align-items-end gap-2">
+                    <select class="form-select form-select-sm bg-dark text-white border-secondary feedback-status-select"
+                        style="width: auto;" data-feedback-id="{{ fb.id }}">
+                        <option value="pending" {{ 'selected' if fb.status=='pending' }}>⏳ In attesa</option>
+                        <option value="in_progress" {{ 'selected' if fb.status=='in_progress' }}>🔄 In lavorazione
+                        </option>
+                        <option value="resolved" {{ 'selected' if fb.status=='resolved' }}>✅ Risolto</option>
+                        <option value="rejected" {{ 'selected' if fb.status=='rejected' }}>❌ Rifiutato</option>
+                    </select>
+                    <button class="btn btn-sm btn-outline-warning reply-feedback-btn"
+                        data-feedback-id="{{ fb.id }}"
+                        data-current-reply="{{ fb.admin_response|default('', true)|e }}"
+                        type="button">
+                        <i class="bi bi-reply"></i> Rispondi
+                    </button>
+                    <button class="btn btn-sm btn-outline-danger delete-feedback-btn"
+                        data-feedback-id="{{ fb.id }}" type="button">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </div>
+            </div>
+            {% if fb.admin_response %}
+            <div class="mt-2 p-2 bg-warning bg-opacity-10 rounded">
+                <small class="text-warning"><i class="bi bi-reply me-1"></i>La tua risposta:</small>
+                <p class="text-white small mb-0">{{ fb.admin_response }}</p>
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="text-center text-muted py-5">
+        <i class="bi bi-inbox fs-1 d-block mb-2"></i>
+        Nessun feedback ricevuto.
+    </div>
+    {% endif %}
+</div>
+
+<!-- Modal Risposta -->
+<div class="modal fade" id="replyModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content bg-dark text-white border-warning">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title text-artiglio"><i class="bi bi-reply me-2"></i>Rispondi al Feedback</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <textarea class="form-control bg-dark text-white border-secondary" id="replyText" rows="3"
+                    placeholder="Scrivi una risposta..."></textarea>
+            </div>
+            <div class="modal-footer border-secondary">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
+                <button type="button" class="btn btn-warning" id="submitReplyBtn">Invia Risposta</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

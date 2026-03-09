@@ -1,0 +1,321 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2 class="text-artiglio mb-0">CALENDARIO</h2>
+    <div class="d-flex gap-2">
+        <button class="btn btn-outline-info btn-sm" type="button" data-bs-toggle="collapse"
+            data-bs-target="#infoEsportazione" aria-expanded="false" aria-controls="infoEsportazione">
+            <i class="bi bi-info-circle"></i>
+        </button>
+        <a href="{{ url_for('main.export_calendar_ics') }}" class="btn btn-warning btn-sm fw-bold">
+            <i class="bi bi-calendar-event"></i> Esporta Calendario (.ics)
+        </a>
+    </div>
+</div>
+
+<!-- Informazioni Esportazione Calendario (Collapsible) -->
+<div class="collapse mb-3" id="infoEsportazione">
+    <div class="alert alert-info" role="alert">
+        <h6 class="alert-heading mb-2">
+            <i class="bi bi-info-circle-fill me-2"></i>Come esportare le partite nel tuo calendario
+        </h6>
+        <p class="mb-0 small">
+            <strong>1.</strong> Clicca sul pulsante <strong>"Esporta Calendario"</strong> per scaricare il file
+            <code>.ics</code><br>
+            <strong>2.</strong> Apri il file scaricato con l'app <strong>Calendario</strong> del tuo telefono o
+            computer<br>
+            <strong>3.</strong> Tutte le partite future verranno aggiunte automaticamente con orario e link a Google
+            Maps!
+        </p>
+    </div>
+</div>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <a href="{{ url_for('main.calendario', year=prev_ym.y, month=prev_ym.m) }}"
+        class="btn btn-outline-secondary btn-sm">
+        <i class="bi bi-chevron-left"></i>
+    </a>
+
+    <h2 class="text-artiglio mb-0 text-uppercase">{{ year }} / {{ month }}</h2>
+
+    <a href="{{ url_for('main.calendario', year=next_ym.y, month=next_ym.m) }}"
+        class="btn btn-outline-secondary btn-sm">
+        <i class="bi bi-chevron-right"></i>
+    </a>
+</div>
+
+<div class="d-flex flex-wrap justify-content-center gap-2 mb-3 small text-muted">
+    <div><span class="badge bg-warning text-dark">🏐</span> Da Giocare</div>
+    <div><span class="badge bg-success">🏆</span> Vinta</div>
+    <div><span class="badge bg-danger">🏳️</span> Persa</div>
+    <div><span class="badge bg-info">🤝</span> Amichevole</div>
+    <div class="border-start border-secondary mx-2"></div>
+    <div><span class="text-warning">Mar</span> 🍺</div>
+    <div><span class="text-danger">Mer</span> 🍕</div>
+</div>
+
+<div class="table-responsive">
+    <table class="table table-bordered table-dark text-center align-middle shadow" style="table-layout: fixed;">
+        <thead>
+            <tr class="text-muted small text-uppercase">
+                <th>Lun</th>
+                <th class="text-warning">Mar</th>
+                <th class="text-danger">Mer</th>
+                <th>Gio</th>
+                <th>Ven</th>
+                <th>Sab</th>
+                <th>Dom</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for week in calendar %}
+            <tr>
+                {% for day in week %}
+                {% if day == 0 %}
+                <td class="bg-black border-secondary opacity-25"></td>
+                {% else %}
+
+                {% set date_str = '%04d-%02d-%02d' % (year, month, day) %}
+                {% set data = days_data.get(date_str, {}) %}
+                {% set turni = data.get('turni', []) %}
+                {% set turno = data.get('turno') %}
+                {% set match = data.get('match') %}
+                {% set weekday = loop.index0 %}
+
+                {# Analizza turni multipli nello stesso giorno #}
+                {% set has_pizza = namespace(value=False) %}
+                {% set has_birra = namespace(value=False) %}
+                {% set pizza_turno = namespace(value=None) %}
+                {% set birra_turno = namespace(value=None) %}
+
+                {% for t in turni %}
+                {% if not t.is_cancelled %}
+                {% if t.tipo == 'pizza' %}
+                {% set has_pizza.value = True %}
+                {% set pizza_turno.value = t %}
+                {% elif t.tipo == 'birra' %}
+                {% set has_birra.value = True %}
+                {% set birra_turno.value = t %}
+                {% endif %}
+                {% endif %}
+                {% endfor %}
+
+                {# Determina colore e emoji #}
+                {% set bg_class = 'bg-dark border-secondary' %}
+                {% set day_emoji = '' %}
+                {% set emoji_class = '' %}
+                {% set split_bg = False %}
+
+                {% if match %}
+                {# Giorno con partita #}
+                {% if match.is_friendly %}
+                {# Partita amichevole - sempre blu #}
+                {% set bg_class = 'bg-info border-info' %}
+                {% set day_emoji = '🤝' %}
+                {% elif match.date_start > now %}
+                {% set bg_class = 'bg-warning border-warning' %}
+                {% set day_emoji = '🏐' %}
+                {% else %}
+                {% if match.sets_us > match.sets_them %}
+                {% set bg_class = 'bg-success border-success' %}
+                {% set day_emoji = '🏆' %}
+                {% else %}
+                {% set bg_class = 'bg-danger border-danger' %}
+                {% set day_emoji = '🏳️' %}
+                {% endif %}
+                {% endif %}
+
+                {% elif has_pizza.value or has_birra.value %}
+                {# Ha almeno un turno attivo #}
+                {% if has_pizza.value and has_birra.value %}
+                {# Entrambi i turni presenti: casella divisa #}
+                {% set split_bg = True %}
+                {% set day_emoji = '🍕🍺' %}
+                {% elif weekday == 1 %}
+                {# Martedì (birra) #}
+                {% if has_birra.value %}
+                {% set bg_class = 'bg-warning bg-opacity-25 border-warning' %}
+                {% set day_emoji = '🍺' %}
+                {% else %}
+                {# Manca birra, ma c'è pizza #}
+                {% set bg_class = 'bg-danger bg-opacity-25 border-danger' %}
+                {% set day_emoji = '🍕' %}
+                {% endif %}
+                {% elif weekday == 2 %}
+                {# Mercoledì (pizza) #}
+                {% if has_pizza.value %}
+                {% set bg_class = 'bg-danger bg-opacity-25 border-danger' %}
+                {% set day_emoji = '🍕' %}
+                {% else %}
+                {# Manca pizza, ma c'è birra #}
+                {% set bg_class = 'bg-warning bg-opacity-25 border-warning' %}
+                {% set day_emoji = '🍺' %}
+                {% endif %}
+                {% else %}
+                {# Altri giorni: mostra quello che c'è #}
+                {% if has_pizza.value %}
+                {% set bg_class = 'bg-danger bg-opacity-25 border-danger' %}
+                {% set day_emoji = '🍕' %}
+                {% elif has_birra.value %}
+                {% set bg_class = 'bg-warning bg-opacity-25 border-warning' %}
+                {% set day_emoji = '🍺' %}
+                {% endif %}
+                {% endif %}
+
+                {% else %}
+                {# Nessun turno: default per mar/mer #}
+                {% if weekday == 1 %}
+                {# Martedì: manca birra #}
+                {% set bg_class = 'bg-dark border-secondary' %}
+                {% set day_emoji = '🍺' %}
+                {% elif weekday == 2 %}
+                {# Mercoledì: manca pizza #}
+                {% set bg_class = 'bg-dark border-secondary' %}
+                {% set day_emoji = '🍕' %}
+                {% endif %}
+                {% endif %}
+
+                <td class="{{ bg_class if not split_bg else '' }} position-relative p-1"
+                    style="{% if split_bg %}background: linear-gradient(135deg, rgba(220, 53, 69, 0.25) 0%, rgba(220, 53, 69, 0.25) 50%, rgba(255, 193, 7, 0.25) 50%, rgba(255, 193, 7, 0.25) 100%); border: 1px solid #6c757d;{% endif %} height: 110px; vertical-align: top;">
+
+                    <div class="d-flex justify-content-between px-1">
+                        <span
+                            class="fw-bold small {{ 'text-dark' if match and match.date_start > now else 'text-muted' }}">{{
+                            day }}</span>
+
+                        <span class="{{ emoji_class }}">{{ day_emoji }}</span>
+                    </div>
+
+                    <div class="mt-1 d-flex flex-column gap-1 align-items-center"
+                        style="overflow-y: auto; max-height: 80px;">
+
+                        {% if match %}
+                        <span class="badge bg-light text-dark w-100"
+                            style="white-space: normal; word-wrap: break-word;">
+                            {{ match.opponent_name }}
+                        </span>
+                        {% if match.date_start <= now %} <span class="badge bg-black w-100">{{ match.sets_us }} - {{
+                            match.sets_them }}</span>
+                            {% else %}
+                            <span class="badge bg-black w-100">{{ match.date_start.strftime('%H:%M') }}</span>
+                            {% endif %}
+                            {% endif %}
+
+                            {# Mostra gli incaricati per ogni tipo di turno #}
+                            {% if pizza_turno.value and not pizza_turno.value.is_cancelled %}
+                            {% for incaricato in pizza_turno.value.incaricati %}
+                            <span class="badge bg-danger text-white shadow-sm text-truncate w-100"
+                                style="font-size: 0.7rem;">
+                                {{ incaricato.soprannome if incaricato.soprannome else incaricato.nome_completo }}
+                            </span>
+                            {% endfor %}
+                            {% endif %}
+
+                            {% if birra_turno.value and not birra_turno.value.is_cancelled %}
+                            {% for incaricato in birra_turno.value.incaricati %}
+                            <span class="badge bg-warning text-dark shadow-sm text-truncate w-100"
+                                style="font-size: 0.7rem;">
+                                {{ incaricato.soprannome if incaricato.soprannome else incaricato.nome_completo }}
+                            </span>
+                            {% endfor %}
+                            {% endif %}
+
+                            {% set is_authorized = (current_user.is_admin or current_user.is_birra or
+                            current_user.is_pizza) %}
+
+                            {# Pulsante cliccabile SOLO se autorizzato E NON c'è una partita #}
+                            {% if is_authorized and not match %}
+                            <button class="btn btn-sm btn-link p-0 stretched-link"
+                                style="position: absolute; top:0; left:0; width:100%; height:100%; z-index: 5;"
+                                data-bs-toggle="modal" data-bs-target="#manageTurnoModal" data-date="{{ date_str }}"
+                                data-day="{{ day }}" data-weekday="{{ weekday }}"
+                                data-has-pizza="{{ 'true' if has_pizza.value else 'false' }}"
+                                data-has-birra="{{ 'true' if has_birra.value else 'false' }}"
+                                data-pizza-assigned="{% if pizza_turno.value %}{% for u in pizza_turno.value.incaricati %}{{ u.id }},{% endfor %}{% endif %}"
+                                data-birra-assigned="{% if birra_turno.value %}{% for u in birra_turno.value.incaricati %}{{ u.id }},{% endfor %}{% endif %}"
+                                {% if turno %}data-type="{{ turno.tipo }}" {% elif weekday==1 %}data-type="birra" {%
+                                elif weekday==2 %}data-type="pizza" {% else %}data-type="" {% endif %}
+                                data-cancelled="{{ 'true' if turno and turno.is_cancelled else 'false' }}">
+                            </button>
+                            {% endif %}
+
+                            {% if match %}
+                            <a href="{{ url_for('main.partite') }}" class="stretched-link"></a>
+                            {% endif %}
+                    </div>
+                </td>
+                {% endif %}
+                {% endfor %}
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<div class="modal fade" id="manageTurnoModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content bg-dark border-secondary text-white">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title">Gestione Turno</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form action="/gestisci_turno" method="POST">
+                    <input type="hidden" name="date" id="modalDateInput">
+
+                    <p class="text-center text-muted mb-3">
+                        Giorno selezionato: <span id="modalDateDisplay" class="text-white fw-bold"></span>
+                    </p>
+
+                    <div class="mb-3">
+                        <label class="form-label text-warning small">Cosa si porta?</label>
+                        <select name="tipo" id="modalTypeSelect"
+                            class="form-select bg-black text-white border-secondary">
+                            {% if current_user.is_admin or current_user.is_birra %}
+                            <option value="birra">🍺 Birra</option>
+                            {% endif %}
+                            {% if current_user.is_admin or current_user.is_pizza %}
+                            <option value="pizza">🍕 Pizza</option>
+                            {% endif %}
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label text-warning small">Chi è di turno?</label>
+                        <div class="list-group" style="max-height: 200px; overflow-y: auto;">
+                            {% for p in players %}
+                            <label
+                                class="list-group-item bg-black border-secondary text-white d-flex align-items-center justify-content-between p-2">
+                                <div class="d-flex align-items-center gap-2">
+                                    <input class="form-check-input me-1" type="checkbox" name="user_ids"
+                                        value="{{ p.id }}" id="chk_{{ p.id }}">
+                                    <span>{{ p.soprannome if p.soprannome else p.nome_completo }}</span>
+                                </div>
+                                <div class="d-flex gap-2 small">
+                                    <span class="badge bg-danger" title="Pizze portate">🍕 {{ turni_counts.get(p.id,
+                                        {}).get('pizza', 0) }}</span>
+                                    <span class="badge bg-warning text-dark" title="Birre portate">🍺 {{
+                                        turni_counts.get(p.id, {}).get('birra', 0) }}</span>
+                                </div>
+                            </label>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <div class="d-grid gap-2">
+                        <button type="submit" name="action" value="assign" class="btn btn-success fw-bold">💾
+                            SALVA</button>
+                        <button type="submit" name="action" value="cancel" class="btn btn-secondary">⛔ ANNULLA
+                            DATA</button>
+                        <button type="submit" name="action" value="delete" class="btn btn-outline-danger btn-sm">🗑️
+                            Pulisci Casella</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

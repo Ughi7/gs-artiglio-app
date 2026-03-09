@@ -1,0 +1,80 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="display-5 text-artiglio mb-2"><i class="bi bi-trophy me-2"></i>Statistiche Partite</h1>
+            <p class="text-muted">Analisi prestazioni e risultati</p>
+        </div>
+        <a href="{{ url_for('main.partite') }}" class="btn btn-outline-secondary rounded-pill">
+            <i class="bi bi-arrow-left me-2"></i>Torna alle Partite
+        </a>
+    </div>
+
+    <div class="row g-4 mb-4">
+        <!-- Andamento Vittorie/Sconfitte -->
+        <div class="col-lg-8">
+            <div class="card bg-dark border-secondary shadow-sm h-100">
+                <div class="card-header bg-transparent border-secondary">
+                    <h5 class="text-artiglio mb-0"><i class="bi bi-activity me-2"></i>Bilancio Cumulativo (Vittorie -
+                        Sconfitte)</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="vittorieTempoChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- % Vittorie/Sconfitte Totali -->
+        <div class="col-lg-4">
+            <div class="card bg-dark border-secondary shadow-sm h-100">
+                <div class="card-header bg-transparent border-secondary">
+                    <h5 class="text-artiglio mb-0"><i class="bi bi-pie-chart-fill me-2"></i>Vittorie/Sconfitte Totali
+                    </h5>
+                </div>
+                <div class="card-body d-flex align-items-center justify-content-center">
+                    <canvas id="vittorieTotaliChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <!-- Set Vinti/Persi per Mese -->
+        <div class="col-lg-12">
+            <div class="card bg-dark border-secondary shadow-sm">
+                <div class="card-header bg-transparent border-secondary">
+                    <h5 class="text-artiglio mb-0"><i class="bi bi-bar-chart-line me-2"></i>Set Vinti/Persi per Mese
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="setMensiliChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+<script>
+    if (typeof window.initStatsPartite === 'function') {
+        const data = {
+            vittorieTempo: {{ vittorie_tempo | tojson | safe
+    }},
+    sconfitteTempo: { { sconfitte_tempo | tojson | safe } },
+    datePartite: { { date_partite | tojson | safe } },
+    vittorieTotali: { { vittorie_totali } },
+    sconfitteTotali: { { sconfitte_totali } },
+    mesiPartite: { { mesi_partite | tojson | safe } },
+    setVintiPerMese: { { set_vinti_per_mese | tojson | safe } },
+    setPersiPerMese: { { set_persi_per_mese | tojson | safe } }
+        };
+    window.initStatsPartite(data);
+    }
+</script>
+
+{% endblock %}

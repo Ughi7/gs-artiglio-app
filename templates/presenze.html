@@ -1,0 +1,449 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-2">
+    <h2 class="text-artiglio mb-0">PRESENZE</h2>
+    <div class="d-flex gap-2">
+        <button class="btn btn-outline-info btn-sm" type="button" data-bs-toggle="collapse"
+            data-bs-target="#infoPresenze">
+            <i class="bi bi-info-circle"></i>
+        </button>
+    </div>
+</div>
+
+<!-- Filtri -->
+<div class="btn-group mb-3 w-100" role="group">
+    <a href="{{ url_for('main.presenze', filter='all') }}"
+        class="btn {{ 'btn-secondary' if current_filter == 'all' else 'btn-outline-secondary' }}">
+        Tutti
+    </a>
+    <a href="{{ url_for('main.presenze', filter='training') }}"
+        class="btn {{ 'btn-info' if current_filter == 'training' else 'btn-outline-info' }}">
+        📋 Allenamenti
+    </a>
+    <a href="{{ url_for('main.presenze', filter='match') }}"
+        class="btn {{ 'btn-warning text-dark' if current_filter == 'match' else 'btn-outline-warning' }}">
+        🏐 Partite
+    </a>
+</div>
+
+<!-- Info Box Collapsibile -->
+<div class="collapse mb-3" id="infoPresenze">
+    <div class="alert alert-info" role="alert">
+        <h6 class="alert-heading mb-2">
+            <i class="bi bi-info-circle-fill me-2"></i>Come funziona Presenze?
+        </h6>
+        <ul class="small mb-0">
+            <li><strong>Partite</strong>: tutte le partite future</li>
+            <li><strong>Allenamenti</strong>: Martedì, Mercoledì e Venerdì (se non c'è partita)</li>
+            <li><strong>Segna Assenza</strong>: clicca per segnalarti assente (puoi indicare il motivo)</li>
+            <li><span class="badge bg-success">🟢</span> 0 assenze | <span class="badge bg-warning text-dark">🟡</span>
+                1-2 assenze | <span class="badge bg-danger">🔴</span> 3+ assenze</li>
+        </ul>
+    </div>
+</div>
+
+<!-- Titolo Prossimi Eventi -->
+<h5 class="text-muted mb-3"><i class="bi bi-calendar-check"></i> Prossimi Eventi</h5>
+
+<!-- Lista Eventi -->
+<div class="list-group">
+    {% for event in events %}
+    {% set color_class = 'bg-success' if event.absences == 0 else ('bg-warning' if event.absences <= 2 else 'bg-danger'
+        ) %} <div class="card bg-dark border-secondary mb-3 shadow-sm">
+        <div class="card-header bg-black border-secondary d-flex justify-content-between align-items-center py-3">
+            <div class="d-flex align-items-center gap-3">
+                <!-- Indicatore Colore (più grande e visibile) -->
+                <span class="d-flex align-items-center justify-content-center rounded-circle {{ color_class }}"
+                    style="width: 24px; height: 24px; min-width: 24px;">
+                    {% if event.absences == 0 %}
+                    <i class="bi bi-check-lg text-white" style="font-size: 14px;"></i>
+                    {% elif event.absences <= 2 %} <span class="text-dark fw-bold" style="font-size: 12px;">{{
+                        event.absences }}</span>
+                {% else %}
+                <span class="text-white fw-bold" style="font-size: 12px;">{{ event.absences }}</span>
+                {% endif %}
+                </span>
+
+                <div>
+                    <h6 class="mb-0 text-white">{{ event.title }}</h6>
+                    <small class="text-muted">
+                        📅 {{ event.date.strftime('%d/%m/%Y') }} • {{ event.subtitle }}
+                        {% if event.type == 'match' and event.is_friendly %}
+                        <span class="badge bg-info ms-1">Amichevole</span>
+                        {% endif %}
+                    </small>
+                </div>
+            </div>
+
+            <div class="d-flex align-items-center gap-2">
+                <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse"
+                    data-bs-target="#event{{ event.type }}{{ event.id }}">
+                    <i class="bi bi-chevron-down"></i>
+                </button>
+            </div>
+        </div>
+
+        <div class="collapse" id="event{{ event.type }}{{ event.id }}">
+            <div class="card-body">
+                <!-- Info Evento -->
+                {% if event.type == 'match' %}
+                <div class="mb-3">
+                    <small class="text-muted">
+                        📍 {{ 'Casa (PalaArtiglio)' if event.is_home else event.location }}
+                    </small>
+                </div>
+                {% endif %}
+
+                <!-- Lista Assenti -->
+                {% if event.absent_users %}
+                <div class="mb-3">
+                    <h6 class="text-warning small mb-2">Assenti ({{ event.absences }}):</h6>
+                    <div class="d-flex flex-wrap gap-2">
+                        {% for user in event.absent_users %}
+                        <span class="badge bg-danger">
+                            {{ user.soprannome if user.soprannome else user.nome_completo }}
+                        </span>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Lista Ritardatari (solo per allenamenti) -->
+                {% if event.type == 'training' and event.late_users %}
+                <div class="mb-3">
+                    <h6 class="text-info small mb-2">In ritardo ({{ event.late_count }}):</h6>
+                    <div class="d-flex flex-wrap gap-2">
+                        {% for user, reason in event.late_users %}
+                        <span class="badge bg-info text-dark">
+                            ⏰ {{ user.soprannome if user.soprannome else user.nome_completo }}
+                            {% if reason %}<small>({{ reason }})</small>{% endif %}
+                        </span>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Note Allenatore (solo per allenamenti con note) -->
+                {% if event.type == 'training' %}
+                {% if event.coach_notes %}
+                <div class="alert alert-info py-2 px-3 mb-2">
+                    <small><i class="bi bi-megaphone me-1"></i> <strong>Note:</strong> {{ event.coach_notes }}</small>
+                </div>
+                {% endif %}
+
+                {% if event.coach_notes_private and (current_user.is_admin or current_user.is_coach) %}
+                <div class="alert alert-warning py-2 px-3 mb-3 border-warning">
+                    <small class="text-warning"><i class="bi bi-lock-fill me-1"></i> <strong>Privato:</strong> {{
+                        event.coach_notes_private }}</small>
+                </div>
+                {% endif %}
+                {% endif %}
+
+                {% if not event.absent_users and (event.type != 'training' or not event.late_users) %}
+                <div class="mb-3">
+                    <span class="text-success small"><i class="bi bi-check-circle-fill"></i> Tutti presenti!</span>
+                </div>
+                {% endif %}
+
+                <hr class="border-secondary">
+
+                <!-- Azioni Utente -->
+                <div class="d-flex flex-wrap gap-2 align-items-center">
+                    <!-- Segna Assenza Personale -->
+                    <form action="{{ url_for('main.segna_assenza', event_type=event.type, event_id=event.id) }}"
+                        method="POST" class="d-flex gap-2">
+                        {% if not event.user_is_absent and not event.user_is_late %}
+                        <input type="text" name="reason"
+                            class="form-control form-control-sm bg-black text-white border-secondary"
+                            placeholder="Motivo assenza" style="max-width: 150px;">
+                        <button type="submit" class="btn btn-sm btn-outline-danger">
+                            <i class="bi bi-x-circle"></i> Assente
+                        </button>
+                        {% elif event.user_is_absent %}
+                        <span class="text-danger me-2">
+                            <i class="bi bi-x-circle-fill"></i> Assente
+                            {% if event.user_reason %}<small class="text-muted">({{ event.user_reason }})</small>{%
+                            endif %}
+                        </span>
+                        <button type="submit" class="btn btn-sm btn-outline-success">
+                            <i class="bi bi-check-circle"></i> Annulla
+                        </button>
+                        {% endif %}
+                    </form>
+
+                    <!-- Segna Ritardo (solo allenamenti) -->
+                    {% if event.type == 'training' %}
+                    <form action="{{ url_for('main.segna_ritardo', training_id=event.id) }}" method="POST"
+                        class="d-flex gap-2">
+                        {% if not event.user_is_late and not event.user_is_absent %}
+                        <input type="text" name="reason"
+                            class="form-control form-control-sm bg-black text-white border-secondary"
+                            placeholder="Motivo ritardo" style="max-width: 150px;">
+                        <button type="submit" class="btn btn-sm btn-outline-info">
+                            <i class="bi bi-clock"></i> In Ritardo
+                        </button>
+                        {% elif event.user_is_late %}
+                        <span class="text-info me-2">
+                            <i class="bi bi-clock-fill"></i> In ritardo
+                            {% if event.user_late_reason %}<small class="text-muted">({{ event.user_late_reason
+                                }})</small>{% endif %}
+                        </span>
+                        <button type="submit" class="btn btn-sm btn-outline-success">
+                            <i class="bi bi-check-circle"></i> Annulla
+                        </button>
+                        {% endif %}
+                    </form>
+                    {% endif %}
+
+                    <!-- Gestione Allenamento (Admin/Captain/Coach) -->
+                    {% if can_manage and event.type == 'training' %}
+                    <button class="btn btn-sm btn-outline-warning" data-bs-toggle="modal"
+                        data-bs-target="#editTraining{{ event.id }}">
+                        <i class="bi bi-gear"></i> Modifica
+                    </button>
+                    {% endif %}
+
+                    <!-- Gestione Manuale Assenze (Admin/Captain/Coach) -->
+                    {% if can_manage %}
+                    <button class="btn btn-sm btn-outline-info" data-bs-toggle="modal"
+                        data-bs-target="#manageAbsences{{ event.type }}{{ event.id }}">
+                        <i class="bi bi-people"></i> Gestisci
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+</div>
+
+<!-- Modal Modifica Allenamento -->
+{% if can_manage and event.type == 'training' %}
+<div class="modal fade" id="editTraining{{ event.id }}" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content bg-dark border-warning text-white">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title text-warning">Modifica Allenamento</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="{{ url_for('main.modifica_training', training_id=event.id) }}" method="POST">
+                <div class="modal-body">
+                    <div class="row mb-3">
+                        <div class="col-6">
+                            <label class="form-label text-muted small">Inizio</label>
+                            <input type="time" name="start_time"
+                                class="form-control bg-black text-white border-secondary"
+                                value="{{ event.start_time }}">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label text-muted small">Fine</label>
+                            <input type="time" name="end_time" class="form-control bg-black text-white border-secondary"
+                                value="{{ event.end_time }}">
+                        </div>
+                    </div>
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" name="is_cancelled" id="cancel{{ event.id }}">
+                        <label class="form-check-label text-danger" for="cancel{{ event.id }}">
+                            Annulla allenamento
+                        </label>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-muted small">📢 Note Pubbliche (visibili a tutti)</label>
+                        <textarea name="coach_notes" class="form-control bg-black text-white border-secondary" rows="2"
+                            placeholder="Note per la squadra...">{{ event.coach_notes or '' }}</textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-muted small">🔒 Note Private (solo coach)</label>
+                        <textarea name="coach_notes_private" class="form-control bg-black text-white border-warning"
+                            rows="2" placeholder="Note riservate...">{{ event.coach_notes_private or '' }}</textarea>
+                    </div>
+                </div>
+                <div class="modal-footer border-secondary">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
+                    <button type="submit" class="btn btn-warning">Salva</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Modal Gestione Assenze -->
+{% if can_manage %}
+<div class="modal fade" id="manageAbsences{{ event.type }}{{ event.id }}" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content bg-dark border-info text-white">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title text-info">Gestione Assenze</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted small mb-3">Clicca su un giocatore per segnare/annullare la sua assenza.</p>
+                <div class="list-group" style="max-height: 400px; overflow-y: auto;">
+                    {% for player in players %}
+                    {% set is_absent = player in event.absent_users %}
+                    <form
+                        action="{{ url_for('main.segna_assenza_membro', event_type=event.type, event_id=event.id, user_id=player.id) }}"
+                        method="POST"
+                        class="list-group-item bg-black border-secondary d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="badge {{ 'bg-danger' if is_absent else 'bg-success' }}">
+                                {{ '✕' if is_absent else '✓' }}
+                            </span>
+                            <span class="{{ 'text-danger' if is_absent else 'text-white' }}">
+                                {{ player.soprannome if player.soprannome else player.nome_completo }}
+                            </span>
+                        </div>
+                        <button type="submit"
+                            class="btn btn-sm {{ 'btn-outline-success' if is_absent else 'btn-outline-danger' }}">
+                            {{ 'Presenza' if is_absent else 'Assenza' }}
+                        </button>
+                    </form>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% else %}
+<div class="text-center py-5 text-muted">
+    <i class="bi bi-calendar-x display-4"></i>
+    <p class="mt-3">Nessun evento in programma.</p>
+</div>
+{% endfor %}
+</div>
+
+<!-- STORICO PRESENZE (ultimi 30 giorni) -->
+{% if history_events %}
+<hr class="border-secondary my-4">
+<h5 class="text-muted mb-3"><i class="bi bi-clock-history"></i> Storico (ultimi 30 giorni)</h5>
+
+<div class="storico-container">
+    {% for event in history_events %}
+    <div class="storico-item {% if event.type == 'training' %}storico-training{% else %}storico-match{% endif %} {% if event.is_cancelled %}storico-cancelled{% endif %}"
+        data-bs-toggle="collapse" data-bs-target="#hist{{ event.type }}{{ event.id }}"
+        style="cursor: pointer; flex-direction: column; align-items: stretch;">
+
+        <div class="d-flex align-items-start gap-2">
+            <div class="storico-icon">
+                {% if event.type == 'training' %}
+                <i class="bi bi-clipboard-check"></i>
+                {% else %}
+                <i class="bi bi-trophy"></i>
+                {% endif %}
+            </div>
+            <div class="storico-content">
+                <div class="storico-header">
+                    <span class="storico-title">{{ event.title }}</span>
+                    <div class="storico-badges">
+                        {% if event.type == 'match' and event.result %}
+                        <span
+                            class="badge bg-{{ 'success' if event.result.split('-')[0] > event.result.split('-')[1] else 'danger' }}">
+                            {{ event.result }}
+                        </span>
+                        {% endif %}
+                        {% if event.is_cancelled %}
+                        <span class="badge bg-secondary">Annullato</span>
+                        {% endif %}
+                        {% if event.absences > 0 %}
+                        <span class="badge bg-danger">{{ event.absences }}❌</span>
+                        {% endif %}
+                        {% if event.type == 'training' and event.late_count and event.late_count > 0 %}
+                        <span class="badge bg-info text-dark">{{ event.late_count }}⏰</span>
+                        {% endif %}
+                    </div>
+                </div>
+                <small class="storico-date">
+                    📅 {{ event.date.strftime('%d/%m') }} • {{ event.subtitle }}
+                </small>
+                {% if event.type == 'training' and event.coach_notes %}
+                <div class="storico-notes">
+                    <small><i class="bi bi-megaphone"></i> {{ event.coach_notes }}</small>
+                </div>
+                {% endif %}
+            </div>
+            <!-- Arrow icon to indicate expandability -->
+            <div class="ms-auto align-self-center text-muted small">
+                <i class="bi bi-chevron-down"></i>
+            </div>
+        </div>
+
+        <!-- Collapsible Content (Absent Users) -->
+        <div class="collapse" id="hist{{ event.type }}{{ event.id }}">
+            <div class="mt-3 ps-5 border-start border-secondary ms-2">
+                {% if event.absent_users %}
+                <h6 class="text-danger small mb-2">Assenti:</h6>
+                <div class="d-flex flex-wrap gap-1 mb-3">
+                    {% for user in event.absent_users %}
+                    <span class="badge bg-dark border border-danger text-danger">
+                        {{ user.soprannome if user.soprannome else user.nome_completo }}
+                    </span>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <span class="text-success small mb-3 d-block"><i class="bi bi-check-circle-fill"></i> Tutti presenti!</span>
+                {% endif %}
+
+                <!-- Gestione Manuale Assenze anche per eventi passati (Admin/Captain/Coach) -->
+                {% if can_manage %}
+                <button class="btn btn-sm btn-outline-info" data-bs-toggle="modal"
+                    data-bs-target="#managePastAbsences{{ event.type }}{{ event.id }}">
+                    <i class="bi bi-people"></i> Gestisci Assenze
+                </button>
+                {% endif %}
+            </div>
+        </div>
+
+    </div>
+    {% endfor %}
+</div>
+
+<!-- Modal Gestione Assenze Eventi Passati -->
+{% for event in history_events %}
+{% if can_manage %}
+<div class="modal fade" id="managePastAbsences{{ event.type }}{{ event.id }}" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content bg-dark border-info text-white">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title text-info">Gestione Assenze - Evento Passato</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted small mb-3">Clicca su un giocatore per segnare/annullare la sua assenza.</p>
+                <div class="list-group" style="max-height: 400px; overflow-y: auto;">
+                    {% for player in players %}
+                    {% set is_absent = player in event.absent_users %}
+                    <form
+                        action="{{ url_for('main.segna_assenza_membro', event_type=event.type, event_id=event.id, user_id=player.id) }}"
+                        method="POST"
+                        class="list-group-item bg-black border-secondary d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="badge {{ 'bg-danger' if is_absent else 'bg-success' }}">
+                                {{ '✕' if is_absent else '✓' }}
+                            </span>
+                            <span class="{{ 'text-danger' if is_absent else 'text-white' }}">
+                                {{ player.soprannome if player.soprannome else player.nome_completo }}
+                            </span>
+                        </div>
+                        <button type="submit"
+                            class="btn btn-sm {{ 'btn-outline-success' if is_absent else 'btn-outline-danger' }}">
+                            {{ 'Presenza' if is_absent else 'Assenza' }}
+                        </button>
+                    </form>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endfor %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/components.css') }}?v=1772534340">
+{% endblock %}
+{% endif %}
+
+{% endblock %}

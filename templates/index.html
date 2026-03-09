@@ -1,0 +1,781 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="mb-4 text-center">
+    <h1 class="display-5 fw-bold text-white">
+        Ciao, <span class="text-artiglio">{{ current_user.soprannome if current_user.soprannome else
+            current_user.nome_completo }}</span>! 👋
+    </h1>
+    <p class="text-muted">Bentornato nello spogliatoio digitale.</p>
+</div>
+
+{% if unpaid_fines %}
+{% set total_unpaid = unpaid_fines | sum(attribute='amount') %}
+<div class="alert alert-danger shadow-lg border-danger mb-4" role="alert"
+    style="background-color: rgba(220, 53, 69, 0.1);">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <h5 class="alert-heading fw-bold mb-1 text-danger"><i class="bi bi-exclamation-triangle-fill"></i> HAI MULTE
+                DA PAGARE!</h5>
+            <p class="mb-0 small text-white-50">Totale da saldare: <span class="fw-bold text-white">€ {{
+                    "%.2f"|format(total_unpaid) }}</span></p>
+        </div>
+        <a href="{{ url_for('main.multe') }}" class="btn btn-sm btn-danger fw-bold btn-rounded px-3">PAGA ORA</a>
+    </div>
+    <hr class="border-danger opacity-50">
+    <ul class="list-group list-group-flush bg-transparent">
+        {% for fine in unpaid_fines %}
+        <li
+            class="list-group-item bg-transparent text-white border-danger border-opacity-25 d-flex justify-content-between align-items-center px-0 py-2">
+            <span class="text-danger">{{ fine.reason }}</span>
+            <div class="text-end">
+                <span class="fw-bold text-white">€ {{ "%.2f"|format(fine.amount) }}</span>
+                <br>
+                <small class="{{ 'text-danger fw-bold blink' if fine.is_overdue() else 'text-warning' }}"
+                    style="font-size: 0.7rem;">
+                    {{ 'SCADUTA!' if fine.is_overdue() else 'Scad: ' + fine.deadline.strftime('%d/%m') }}
+                </small>
+            </div>
+        </li>
+        {% endfor %}
+    </ul>
+</div>
+{% endif %}
+
+{% if upcoming_shifts %}
+<div class="alert alert-warning shadow-lg border-warning mb-4" role="alert"
+    style="background-color: rgba(255, 193, 7, 0.1);">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <h5 class="alert-heading fw-bold mb-1 text-warning"><i class="bi bi-bell-fill"></i> PROMEMORIA TURNO!</h5>
+            <p class="mb-0 small text-white-50">Non dimenticare il tuo incarico.</p>
+        </div>
+        <a href="{{ url_for('main.calendario') }}"
+            class="btn btn-sm btn-warning fw-bold btn-rounded px-3 text-dark">CALENDARIO</a>
+    </div>
+    <hr class="border-warning opacity-50">
+    <ul class="list-group list-group-flush bg-transparent">
+        {% for turno in upcoming_shifts %}
+        <li
+            class="list-group-item bg-transparent text-white border-warning border-opacity-25 d-flex justify-content-between align-items-center px-0 py-2">
+            <div class="d-flex align-items-center gap-2">
+                <span class="fs-4">{{ '🍕' if turno.tipo == 'pizza' else '🍺' }}</span>
+                <span class="text-warning fw-bold text-uppercase">{{ turno.tipo }}</span>
+            </div>
+            <div class="text-end">
+                <span class="fw-bold text-white">{{ turno.date.strftime('%d/%m/%Y') }}</span>
+                <br>
+                {% set days_left = (turno.date - now.date()).days %}
+                <small class="{{ 'text-danger fw-bold blink' if days_left == 0 else 'text-info' }}"
+                    style="font-size: 0.7rem;">
+                    {{ 'OGGI!' if days_left == 0 else 'Tra ' ~ days_left ~ ' giorni' }}
+                </small>
+            </div>
+        </li>
+        {% endfor %}
+    </ul>
+</div>
+{% endif %}
+
+<div class="row g-3">
+
+    <div class="col-12 col-md-6">
+        <div class="card bg-dark border-secondary h-100 shadow-sm">
+            <div class="card-body d-flex flex-column justify-content-between">
+                <div>
+                    <h5 class="text-muted text-uppercase small">Ultima Partita</h5>
+                    {% if last_match %}
+                    <h4 class="text-artiglio fw-bold mb-0">{{ last_match.opponent_name }}</h4>
+                    <small class="text-muted">
+                        📅 {{ last_match.date_start.strftime('%d/%m') }}
+                        ⏰ {{ last_match.date_start.strftime('%H:%M') }}
+                    </small>
+                    <br>
+                    <div class="mt-2">
+                        <span class="badge bg-success text-white fs-6">{{ last_match.sets_us }}</span>
+                        <span class="text-white mx-2">-</span>
+                        <span class="badge bg-danger text-white fs-6">{{ last_match.sets_them }}</span>
+                    </div>
+
+                    <!-- MVP SECTION -->
+                    <div class="mt-3 border-top border-secondary pt-2">
+                        {% if mvp_revealed %}
+                        <h6 class="text-warning fw-bold mb-2">MVP della Partita 👑</h6>
+                        {% if mvp_winners %}
+                        {% for winner in mvp_winners %}
+                        <div class="d-flex align-items-center justify-content-center mb-1">
+                            <span class="badge bg-warning text-dark me-2">{{ winner.numero_maglia }}</span>
+                            <span class="text-white fw-bold">{{ winner.nome_completo }}</span>
+                        </div>
+                        {% endfor %}
+                        {% else %}
+                        <span class="text-muted small">Nessun voto registrato.</span>
+                        {% endif %}
+                        {% elif mvp_voting_open %}
+                        {% if user_voted %}
+                        <div class="alert alert-dark border-info text-info py-2 px-3 mb-0 d-inline-block rounded-pill">
+                            <small><i class="bi bi-check-circle-fill me-1"></i> MVP in arrivo martedì alle 12:00</small>
+                        </div>
+                        {% else %}
+                        <button class="btn btn-sm btn-outline-warning w-100 rounded-pill" data-bs-toggle="modal"
+                            data-bs-target="#voteMvpModal">
+                            Vota MVP <i class="bi bi-star-fill ms-1"></i>
+                        </button>
+                        {% endif %}
+                        {% endif %}
+                    </div>
+
+                    {% else %}
+                    <h4 class="text-muted fst-italic">Nessuna partita ancora...</h4>
+                    {% endif %}
+                </div>
+                {% if last_match %}
+                <div class="mt-3 text-end">
+                    {% if last_match.stats|length > 0 %}
+                    <div class="d-inline-block">
+                        <button class="btn btn-outline-info btn-rounded" data-bs-toggle="modal"
+                            data-bs-target="#tabellinoModal" data-event-id="{{ last_match.id }}">
+                            Tabellino <i class="bi bi-clipboard-data"></i>
+                        </button>
+                        {% if current_user.is_admin or current_user.is_scout %}
+                        <button class="btn btn-outline-warning btn-rounded ms-1" data-bs-toggle="modal"
+                            data-bs-target="#addStatsModal" title="Modifica Tabellino">
+                            <i class="bi bi-pencil-fill"></i>
+                        </button>
+                        {% endif %}
+                    </div>
+                    {% elif current_user.is_admin or current_user.is_scout %}
+                    <button class="btn btn-outline-warning btn-rounded" data-bs-toggle="modal"
+                        data-bs-target="#addStatsModal">
+                        Aggiungi Tabellino <i class="bi bi-plus-circle"></i>
+                    </button>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-md-6">
+        <div class="card bg-dark border-secondary h-100 shadow-sm">
+            <div class="card-body d-flex flex-column justify-content-between">
+                <div>
+                    <h5 class="text-muted text-uppercase small">Prossima Partita</h5>
+                    {% if next_match %}
+                    <h4 class="text-artiglio fw-bold mb-0">{{ next_match.opponent_name }}</h4>
+                    <small class="text-muted">
+                        📅 {{ next_match.date_start.strftime('%d/%m') }}
+                        ⏰ {{ next_match.date_start.strftime('%H:%M') }}
+                    </small>
+                    <br>
+                    {% if next_match.is_home %}
+                    <span class="badge bg-artiglio text-dark mt-2">CASA</span>
+                    {% else %}
+                    <span class="badge bg-secondary mt-2">TRASFERTA</span>
+                    {% endif %}
+                    {% else %}
+                    <h4 class="text-muted fst-italic">Nessuna partita in vista...</h4>
+                    {% endif %}
+                </div>
+                {% if next_match %}
+                <div class="mt-3 text-end">
+                    {% if next_match.is_home %}
+                    <a href="https://www.google.com/maps/search/?api=1&query=Palartiglio" target="_blank"
+                        class="btn btn-outline-warning btn-rounded">
+                        📍 Palartiglio <i class="bi bi-geo-alt-fill"></i>
+                    </a>
+                    {% else %}
+                    <a href="https://www.google.com/maps/search/?api=1&query={{ next_match.location | urlencode }}"
+                        target="_blank" class="btn btn-outline-warning btn-rounded">
+                        📍 Mappa <i class="bi bi-geo-alt-fill"></i>
+                    </a>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- VIDEO ANALYSIS CARD -->
+    <div class="col-6 col-md-4">
+        <div class="card bg-dark border-secondary h-100 text-center py-4 shadow hover-effect"
+            style="border-bottom: 4px solid #6f42c1 !important;">
+            <div class="card-body">
+                <div class="display-4 mb-3">🎬</div>
+                <h6 class="text-uppercase small text-muted mb-2">Video</h6>
+                <h5 class="text-white fw-bold">Analysis</h5>
+                <a href="{{ url_for('video.video_list') }}" class="stretched-link"></a>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-6 col-md-4">
+        <div class="card bg-dark border-secondary h-100 text-center py-4 shadow hover-effect"
+            style="border-bottom: 4px solid #FFC107 !important;">
+            <div class="card-body">
+                <div class="display-4 mb-3">🍕🍺</div>
+                <h6 class="text-uppercase small text-muted mb-2">Convivialità</h6>
+                <h5 class="text-white fw-bold">Pizza & Birra</h5>
+                <a href="{{ url_for('main.calendario') }}" class="stretched-link"></a>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-6 col-md-4">
+        <div class="card bg-dark border-secondary h-100 text-center py-4 shadow hover-effect"
+            style="border-bottom: 4px solid #f44336 !important;">
+            <div class="card-body">
+                <i class="bi bi-cash-coin display-4 text-danger mb-3"></i>
+                <h6 class="text-uppercase small text-muted mb-2">Amministrazione</h6>
+                <h5 class="text-white fw-bold">Multe</h5>
+                <a href="{{ url_for('main.multe') }}" class="stretched-link"></a>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-6 col-md-4">
+        <div class="card bg-dark border-secondary h-100 text-center py-4 shadow hover-effect"
+            style="border-bottom: 4px solid #4CAF50 !important;">
+            <div class="card-body">
+                <i class="bi bi-clipboard-check display-4 text-success mb-3"></i>
+                <h6 class="text-uppercase small text-muted mb-2">Team</h6>
+                <h5 class="text-white fw-bold">Presenze</h5>
+                <a href="{{ url_for('main.presenze') }}" class="stretched-link"></a>
+            </div>
+        </div>
+    </div>
+
+    <!-- STREAK CARD (solo per giocatori) -->
+    {% if current_user.ruolo_volley not in ['Allenatore', 'Dirigente'] %}
+    <div class="col-6 col-md-4">
+        <div class="card card-streak h-100 text-center py-4 shadow hover-effect">
+            <div class="card-body">
+                <div class="display-4 mb-2">🔥</div>
+                <h3 class="text-success fw-bold mb-0">{{ current_user.current_streak or 0 }}</h3>
+                <h6 class="text-uppercase small text-muted">Streak Pulita</h6>
+                <p class="small text-muted mb-0">giorni senza multe</p>
+                {% if current_user.current_streak and current_user.current_streak >= 7 %}
+                <div class="mt-2 text-warning animate-bounce">🏆</div>
+                {% endif %}
+                <a href="{{ url_for('main.profilo') }}" class="stretched-link"></a>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- FLAPPY EAGLE CARD -->
+    <div class="col-6 col-md-4">
+        <div class="card card-flappy bg-dark border-secondary h-100 text-center py-4 shadow hover-effect">
+            <div class="card-body">
+                <div class="display-4 mb-3">🦅</div>
+                <h6 class="text-uppercase small text-muted mb-2">Minigioco</h6>
+                <h5 class="text-white fw-bold">Floppy Eagle</h5>
+                <a href="{{ url_for('game.game') }}" class="stretched-link"></a>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<!-- SEZIONE BACHECA NOTIFICHE -->
+{% if notifiche %}
+<div class="card bg-dark border-secondary shadow-sm mt-4">
+    <div class="card-header bg-black border-secondary d-flex justify-content-between align-items-center bacheca-header">
+        <div>
+            <h5 class="mb-0 text-artiglio">
+                <i class="bi bi-megaphone-fill me-2"></i>BACHECA
+            </h5>
+            <small class="text-muted">Ultime notizie della settimana</small>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+            <button class="btn btn-sm btn-outline-warning" data-bs-toggle="modal"
+                data-bs-target="#notificationSettingsModal" title="Filtra Notifiche">
+                <i class="bi bi-sliders"></i>
+            </button>
+            <form action="{{ url_for('main.elimina_tutte_notifiche') }}" method="POST" class="m-0">
+                <button type="submit" class="btn btn-sm btn-outline-secondary" id="clearNotificationsBtn">
+                    <i class="bi bi-eye-slash"></i> Nascondi tutto
+                </button>
+            </form>
+        </div>
+    </div>
+    <div class="card-body p-0">
+        <div class="list-group list-group-flush">
+            {% for notifica in notifiche %}
+            <div class="list-group-item bg-dark border-secondary d-flex align-items-start gap-3 py-3">
+                <span class="fs-4">{{ notifica.icon }}</span>
+                <div class="flex-grow-1">
+                    <p class="mb-1 text-white">{{ notifica.messaggio }}</p>
+                    <small class="text-muted">
+                        <i class="bi bi-clock me-1"></i>
+                        {{ notifica.data_creazione.strftime('%d/%m/%Y alle %H:%M') }}
+                    </small>
+                </div>
+                <form action="{{ url_for('main.elimina_notifica', notifica_id=notifica.id) }}" method="POST">
+                    <button type="submit" class="btn btn-sm btn-outline-secondary border-0" title="Nascondi">
+                        <i class="bi bi-x-lg"></i>
+                    </button>
+                </form>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- SEZIONE CLASSIFICA CAMPIONATO -->
+<div class="card bg-dark border-secondary shadow-sm mt-4">
+    <div
+        class="card-header bg-black border-secondary d-flex justify-content-between align-items-center classifica-header">
+        <div>
+            <h5 class="mb-0 text-artiglio">
+                <i class="bi bi-trophy-fill me-2"></i>CLASSIFICA CAMPIONATO
+            </h5>
+            <small class="text-muted">Serie CM Emilia Romagna</small>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+            {% if classifica_info %}
+            <span class="badge bg-secondary">
+                Giornata {{ classifica_info.giornata_attuale }}/{{ classifica_info.giornate_totali }}
+            </span>
+            {% endif %}
+            {% if current_user.is_admin or current_user.is_scout %}
+            <button class="btn btn-sm btn-outline-warning" data-bs-toggle="modal" data-bs-target="#editClassificaModal">
+                <i class="bi bi-pencil-fill"></i>
+            </button>
+            {% endif %}
+        </div>
+    </div>
+    <div class="card-body p-0">
+        {% if classifica %}
+        <!-- Legenda -->
+        <div
+            class="d-flex flex-wrap justify-content-center gap-2 py-2 px-3 border-bottom border-secondary small text-muted">
+            <span><span class="badge" style="background-color: #198754;">⬆️</span> Promozione B</span>
+            <span><span class="badge" style="background-color: #0d6efd;">🏆</span> Play-off</span>
+            <span><span class="badge" style="background-color: #ffc107; color: #000;">⚠️</span> Playout</span>
+            <span><span class="badge" style="background-color: #842029;">⬇️</span> Retrocessione D</span>
+        </div>
+        <div class="table-responsive">
+            <table class="table mb-0" style="background-color: #212529;">
+                <thead>
+                    <tr class="classifica-table-header" style="background-color: #212529;">
+                        <th class="text-muted small text-uppercase text-center"
+                            style="width: 50px; background-color: #212529;">#</th>
+                        <th class="text-muted small text-uppercase" style="background-color: #212529;">Squadra</th>
+                        <th class="text-muted small text-uppercase text-center"
+                            style="width: 80px; background-color: #212529;">Punti</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% set total_teams = classifica|length %}
+                    {% for squadra in classifica %}
+                    {% set pos = squadra.posizione %}
+
+                    {# Calcola zona retrocessione: ultime 4 = pos > total-4, quintultima = pos == total-4 #}
+                    {% set zona_retro = total_teams - 3 %}
+                    {% set zona_playout = total_teams - 4 %}
+
+                    {# Determina colori in base alla posizione (anche per Artiglio) #}
+                    {% if pos == 1 %}
+                    {% set bg = '#198754' %}
+                    {% set fg = '#ffffff' %}
+                    {% elif pos >= 2 and pos <= 5 %} {% set bg='#0d6efd' %} {% set fg='#ffffff' %} {% elif
+                        pos==zona_playout %} {% set bg='#ffc107' %} {% set fg='#000000' %} {% elif pos>= zona_retro %}
+                        {% set bg = '#842029' %}
+                        {% set fg = '#ffffff' %}
+                        {% else %}
+                        {% set bg = '#212529' %}
+                        {% set fg = '#ffffff' %}
+                        {% endif %}
+
+                        {# Aggiungi classe per invertire colori in tema chiaro per posizioni 6-9 #}
+                        {% set invert_class = '' %}
+                        {% if pos >= 6 and pos <= 9 %} {% set invert_class='classifica-invert-light' %} {% endif %} <tr
+                            class="{{ invert_class }}">
+                            <td class="text-center fw-bold"
+                                style="background-color: {{ bg|default('#212529') }}; color: {{ fg|default('#ffffff') }};">
+                                {% if pos == 1 %}🥇{% elif pos == 2 %}🥈{% elif pos == 3 %}🥉{% else %}{{ pos }}{% endif
+                                %}
+                            </td>
+                            <td class="fw-bold{% if not squadra.is_artiglio %} fw-normal{% endif %}"
+                                style="background-color: {{ bg|default('#212529') }}; color: {{ fg|default('#ffffff') }};">
+                                {{ squadra.squadra }}
+                                {% if squadra.is_artiglio %}
+                                <span class="badge bg-dark text-warning ms-1">🦅</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-center fw-bold"
+                                style="background-color: {{ bg|default('#212529') }}; color: {{ fg|default('#ffffff') }};">
+                                {{ squadra.punti }}
+                            </td>
+                            </tr>
+                            {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center text-muted py-4">
+            <i class="bi bi-trophy display-4 mb-2"></i>
+            <p>Nessuna classifica disponibile.</p>
+            {% if current_user.is_admin or current_user.is_scout %}
+            <button class="btn btn-sm btn-outline-warning" data-bs-toggle="modal" data-bs-target="#editClassificaModal">
+                Configura Classifica
+            </button>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}?v=1772534340">
+{% endblock %}
+
+<!-- Modal Tabellino -->
+<div class="modal fade" id="tabellinoModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content bg-dark border-info text-white">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title">
+                    <i class="bi bi-clipboard-data text-info"></i> Tabellino Partita
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                {% if last_match and last_match.stats|length > 0 %}
+
+                <div class="table-responsive">
+                    <table class="table table-dark table-striped table-hover">
+                        <thead>
+                            <tr class="text-center">
+                                <th class="text-start">Giocatore</th>
+                                <th>Punti</th>
+                                <th>Ace</th>
+                                <th>Muri</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for stat in last_match.stats %}
+                            <tr class="text-center">
+                                <td class="text-start fw-bold text-white">
+                                    {{ stat.giocatore.soprannome if stat.giocatore.soprannome else
+                                    stat.giocatore.nome_completo }}
+                                </td>
+                                <td class="text-artiglio">{{ stat.points }}</td>
+                                <td class="text-success">{{ stat.aces }}</td>
+                                <td class="text-info">{{ stat.blocks }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <hr class="border-secondary my-4">
+
+                <div class="row text-center">
+                    <div class="col-3">
+                        <h6 class="text-white-50 small">PUNTI TOTALI</h6>
+                        <h3 class="text-artiglio fw-bold">
+                            {{ last_match.stats|sum(attribute='points') }}
+                        </h3>
+                    </div>
+                    <div class="col-3">
+                        <h6 class="text-white-50 small">TOTALE ACE</h6>
+                        <h3 class="text-success fw-bold">
+                            {{ last_match.stats|sum(attribute='aces') }}
+                        </h3>
+                    </div>
+                    <div class="col-3">
+                        <h6 class="text-white-50 small">TOTALE MURI</h6>
+                        <h3 class="text-info fw-bold">
+                            {{ last_match.stats|sum(attribute='blocks') }}
+                        </h3>
+                    </div>
+                    <div class="col-3">
+                        <h6 class="text-white-50 small">BATTUTE SBAGLIATE</h6>
+                        <h3 class="text-danger fw-bold">
+                            {{ last_match.total_missed_serves if last_match.total_missed_serves else 0 }}
+                        </h3>
+                    </div>
+                </div>
+
+                {% else %}
+                <p class="text-center text-muted py-4">Nessuna statistica disponibile per questa partita.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Aggiungi Statistiche (Admin/Scout) -->
+{% if (current_user.is_admin or current_user.is_scout) and last_match %}
+<div class="modal fade" id="addStatsModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-xl">
+        <div class="modal-content bg-dark border-info text-white">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title">
+                    <i class="bi bi-clipboard-data text-info"></i> {{ 'Modifica' if last_match.stats|length > 0 else
+                    'Aggiungi' }} Tabellino - {{ last_match.opponent_name }}
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form action="/salva_statistiche" method="POST">
+                    <input type="hidden" name="event_id" value="{{ last_match.id }}">
+
+                    <!-- Statistiche di Squadra -->
+                    <div class="card bg-black border-secondary mb-4">
+                        <div class="card-header">
+                            <h6 class="text-info mb-0">Statistiche di Squadra</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-4 mb-3">
+                                    <label class="form-label text-muted small">Battute Sbagliate Totali</label>
+                                    <input type="number" name="total_missed_serves"
+                                        class="form-control bg-dark text-white border-secondary"
+                                        value="{{ last_match.total_missed_serves if last_match.total_missed_serves else 0 }}"
+                                        min="0">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Statistiche Individuali -->
+                    <div class="card bg-black border-secondary">
+                        <div class="card-header">
+                            <h6 class="text-info mb-0">Statistiche Giocatori</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-dark table-sm">
+                                    <thead>
+                                        <tr class="text-center">
+                                            <th class="text-start">Giocatore</th>
+                                            <th>Punti</th>
+                                            <th>Ace</th>
+                                            <th>Muri</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for player in players %}
+                                        {% set stat = last_match.stats|selectattr('user_id', 'equalto', player.id)|first
+                                        %}
+                                        <tr class="text-center">
+                                            <td class="text-start">
+                                                <span class="badge bg-secondary me-1">{{ player.numero_maglia }}</span>
+                                                {{ player.soprannome if player.soprannome else player.nome_completo }}
+                                            </td>
+                                            <td>
+                                                <input type="number" name="points_{{ player.id }}"
+                                                    class="form-control form-control-sm bg-dark text-white border-secondary text-center"
+                                                    value="{{ stat.points if stat else 0 }}" min="0"
+                                                    style="width: 70px; display: inline-block;">
+                                            </td>
+                                            <td>
+                                                <input type="number" name="aces_{{ player.id }}"
+                                                    class="form-control form-control-sm bg-dark text-white border-secondary text-center"
+                                                    value="{{ stat.aces if stat else 0 }}" min="0"
+                                                    style="width: 70px; display: inline-block;">
+                                            </td>
+                                            <td>
+                                                <input type="number" name="blocks_{{ player.id }}"
+                                                    class="form-control form-control-sm bg-dark text-white border-secondary text-center"
+                                                    value="{{ stat.blocks if stat else 0 }}" min="0"
+                                                    style="width: 70px; display: inline-block;">
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-info w-100 fw-bold mt-3">
+                        <i class="bi bi-save"></i> SALVA STATISTICHE
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Modal Voto MVP -->
+{% if mvp_voting_open and not user_voted and last_match %}
+<div class="modal fade" id="voteMvpModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content bg-dark text-white border-secondary">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title text-warning">Vota MVP - {{ last_match.opponent_name }}</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                    aria-label="Close"></button>
+            </div>
+            <form action="{{ url_for('main.vote_mvp', event_id=last_match.id) }}" method="POST">
+                <div class="modal-body">
+                    <p class="small text-muted mb-3">Scegli il giocatore che si è distinto maggiormente in partita.</p>
+                    <div class="list-group list-group-flush" style="max-height: 400px; overflow-y: auto;">
+                        {% for player in players %}
+                        <label
+                            class="list-group-item bg-dark text-white border-secondary d-flex align-items-center action-hover">
+                            <input class="form-check-input me-3" type="radio" name="voted_user_id"
+                                value="{{ player.id }}" required>
+                            <span class="badge bg-secondary me-2" style="width: 30px;">{{ player.numero_maglia }}</span>
+                            {{ player.nome_completo }}
+                        </label>
+                        {% endfor %}
+                    </div>
+                </div>
+                <div class="modal-footer border-secondary">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
+                    <button type="submit" class="btn btn-warning fw-bold text-dark">Vota MVP</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Modal Modifica Classifica (Admin/Scout) -->
+{% if current_user.is_admin or current_user.is_scout %}
+<div class="modal fade" id="editClassificaModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content bg-dark border-warning text-white">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title text-artiglio">
+                    <i class="bi bi-trophy-fill me-2"></i>Gestione Classifica Campionato
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <!-- Info Giornata -->
+                <form action="{{ url_for('main.salva_classifica') }}" method="POST" class="mb-4">
+                    <div class="card bg-black border-secondary mb-3">
+                        <div class="card-header">
+                            <h6 class="mb-0 text-info">Info Giornata</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-6">
+                                    <label class="form-label text-muted small">Giornata Attuale</label>
+                                    <input type="number" name="giornata_attuale"
+                                        class="form-control bg-dark text-white border-secondary"
+                                        value="{{ classifica_info.giornata_attuale if classifica_info else 0 }}"
+                                        min="0">
+                                </div>
+                                <div class="col-6">
+                                    <label class="form-label text-muted small">Giornate Totali</label>
+                                    <input type="number" name="giornate_totali"
+                                        class="form-control bg-dark text-white border-secondary"
+                                        value="{{ classifica_info.giornate_totali if classifica_info else 26 }}"
+                                        min="1">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Classifica Squadre -->
+                    <div class="card bg-black border-secondary mb-3">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h6 class="mb-0 text-info">Squadre</h6>
+                        </div>
+                        <div class="card-body p-0">
+                            {% if classifica %}
+                            <div class="table-responsive">
+                                <table class="table table-dark table-sm mb-0">
+                                    <thead>
+                                        <tr class="text-muted small">
+                                            <th>#</th>
+                                            <th>Squadra</th>
+                                            <th class="text-center">Punti</th>
+                                            <th class="text-center">Azione</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for squadra in classifica %}
+                                        <tr class="{{ 'table-warning' if squadra.is_artiglio else '' }}">
+                                            <td class="align-middle">{{ squadra.posizione }}</td>
+                                            <td
+                                                class="align-middle {{ 'text-dark fw-bold' if squadra.is_artiglio else '' }}">
+                                                {{ squadra.squadra }}
+                                                {% if squadra.is_artiglio %}<span
+                                                    class="badge bg-dark text-warning ms-1">🦅</span>{% endif %}
+                                            </td>
+                                            <td class="text-center">
+                                                <input type="number" name="punti_{{ squadra.id }}"
+                                                    class="form-control form-control-sm bg-dark text-white border-secondary text-center"
+                                                    value="{{ squadra.punti }}" min="0"
+                                                    style="width: 70px; display: inline-block;">
+                                            </td>
+                                            <td class="text-center">
+                                                <button type="button" class="btn btn-sm btn-outline-danger remove-squadra-btn"
+                                                    data-form-id="removeSquadra{{ squadra.id }}"
+                                                    data-squadra-name="{{ squadra.squadra }}">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                            {% else %}
+                            <p class="text-muted text-center py-3 mb-0">Nessuna squadra inserita.</p>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-warning w-100 fw-bold">
+                        <i class="bi bi-save me-1"></i> SALVA CLASSIFICA
+                    </button>
+                </form>
+
+                <!-- Form Aggiungi Squadra -->
+                <div class="card bg-black border-secondary">
+                    <div class="card-header">
+                        <h6 class="mb-0 text-success">Aggiungi Nuova Squadra</h6>
+                    </div>
+                    <div class="card-body">
+                        <form action="{{ url_for('main.aggiungi_squadra') }}" method="POST">
+                            <div class="row g-2">
+                                <div class="col-md-5">
+                                    <input type="text" name="nome_squadra"
+                                        class="form-control bg-dark text-white border-secondary"
+                                        placeholder="Nome squadra" required>
+                                </div>
+                                <div class="col-md-3">
+                                    <input type="number" name="punti"
+                                        class="form-control bg-dark text-white border-secondary" placeholder="Punti"
+                                        value="0" min="0">
+                                </div>
+                                <div class="col-md-2">
+                                    <div class="form-check mt-2">
+                                        <input class="form-check-input" type="checkbox" name="is_artiglio"
+                                            id="isArtiglioCheck">
+                                        <label class="form-check-label small" for="isArtiglioCheck">🦅 Noi</label>
+                                    </div>
+                                </div>
+                                <div class="col-md-2">
+                                    <button type="submit" class="btn btn-success w-100">
+                                        <i class="bi bi-plus"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Form nascosti per rimuovere squadre -->
+{% for squadra in classifica %}
+<form id="removeSquadra{{ squadra.id }}" action="{{ url_for('main.rimuovi_squadra', squadra_id=squadra.id) }}" method="POST"
+    style="display:none;"></form>
+{% endfor %}
+{% endif %}
+
+{% endblock %}

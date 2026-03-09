@@ -1,0 +1,319 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container-fluid px-3">
+
+    <!-- Header -->
+    <div class="d-flex align-items-center justify-content-between mb-4">
+        <h4 class="mb-0">
+            <i class="bi bi-megaphone text-artiglio me-2"></i>
+            Aggiornamenti & Feedback
+        </h4>
+    </div>
+
+    <!-- Tabs Navigation -->
+    <ul class="nav nav-pills feedback-tabs mb-3" id="feedbackTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="changelog-tab" data-bs-toggle="tab" data-bs-target="#changelog"
+                type="button">
+                <i class="bi bi-clock-history me-1"></i> Novità
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="bug-tab" data-bs-toggle="tab" data-bs-target="#bug" type="button">
+                <i class="bi bi-bug me-1"></i> Segnala Bug
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="proposal-tab" data-bs-toggle="tab" data-bs-target="#proposal" type="button">
+                <i class="bi bi-lightbulb me-1"></i> Proponi
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="myfeedback-tab" data-bs-toggle="tab" data-bs-target="#myfeedback"
+                type="button">
+                <i class="bi bi-person-lines-fill me-1"></i> I Miei
+            </button>
+        </li>
+    </ul>
+
+    <!-- Tab Contents -->
+    <div class="tab-content" id="feedbackTabContent">
+
+        <!-- CHANGELOG TAB -->
+        <div class="tab-pane fade show active" id="changelog" role="tabpanel">
+            {% if current_user.is_admin %}
+            <!-- Form Admin per nuovo aggiornamento -->
+            <div class="card bg-dark border-warning mb-4">
+                <div class="card-header bg-warning text-dark">
+                    <i class="bi bi-plus-circle me-2"></i>Pubblica Nuovo Aggiornamento
+                </div>
+                <div class="card-body">
+                    <form action="{{ url_for('admin_custom.nuovo_aggiornamento') }}" method="POST">
+                        <div class="row g-3">
+                            <div class="col-md-3">
+                                <input type="text" class="form-control bg-dark text-white border-secondary"
+                                    name="version" placeholder="Versione (es. 2.1.0)" required>
+                            </div>
+                            <div class="col-md-6">
+                                <input type="text" class="form-control bg-dark text-white border-secondary" name="title"
+                                    placeholder="Titolo (es. Nuovo sistema notifiche)" required>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="form-check mt-2">
+                                    <input class="form-check-input" type="checkbox" name="is_major" id="is_major">
+                                    <label class="form-check-label text-warning" for="is_major">
+                                        <i class="bi bi-star-fill"></i> Major
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <textarea class="form-control bg-dark text-white border-secondary" name="notes" rows="3"
+                                    placeholder="Descrizione delle novità..." required></textarea>
+                            </div>
+                            <div class="col-12">
+                                <button type="submit" class="btn btn-warning">
+                                    <i class="bi bi-send me-1"></i>Pubblica
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Timeline Changelog -->
+            {% if releases %}
+            <div class="timeline">
+                {% for release in releases %}
+                <div class="timeline-item {{ 'major' if release.is_major else '' }}">
+                    <div class="card bg-dark border-secondary">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <div>
+                                    <span class="badge bg-artiglio text-dark me-2">v{{ release.version }}</span>
+                                    {% if release.is_major %}
+                                    <span class="badge bg-danger"><i class="bi bi-star-fill"></i> Major</span>
+                                    {% endif %}
+                                </div>
+                                <div class="d-flex align-items-center gap-2">
+                                    <small class="text-muted">
+                                        {{ release.release_date.strftime('%d/%m/%Y') }}
+                                    </small>
+                                    {% if current_user.is_admin %}
+                                    <button class="btn btn-sm btn-outline-warning py-0 px-1 edit-release-btn"
+                                        data-id="{{ release.id }}" data-version="{{ release.version }}"
+                                        data-title="{{ release.title }}" data-notes="{{ release.notes }}"
+                                        data-major="{{ 'true' if release.is_major else 'false' }}">
+                                        <i class="bi bi-pencil"></i>
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-danger py-0 px-1 delete-release-btn"
+                                        data-release-id="{{ release.id }}" data-release-version="{{ release.version }}"
+                                        type="button">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <h6 class="text-white mb-2">{{ release.title }}</h6>
+                            <p class="text-muted mb-0 small" style="white-space: pre-line;">{{ release.notes }}</p>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="text-center text-muted py-5">
+                <i class="bi bi-inbox fs-1 d-block mb-2"></i>
+                Nessun aggiornamento ancora pubblicato.
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- BUG REPORT TAB -->
+        <div class="tab-pane fade" id="bug" role="tabpanel">
+            <div class="card bg-dark border-danger">
+                <div class="card-header border-danger">
+                    <i class="bi bi-bug-fill text-danger me-2"></i>Segnala un Problema
+                </div>
+                <div class="card-body">
+                    <form action="{{ url_for('admin_custom.invia_feedback') }}" method="POST" enctype="multipart/form-data">
+                        <input type="hidden" name="feedback_type" value="bug">
+
+                        <div class="mb-3">
+                            <label class="form-label text-muted small">Titolo breve *</label>
+                            <input type="text" class="form-control bg-dark text-white border-secondary" name="title"
+                                placeholder="Es: L'app crasha quando clicco su..." required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label text-muted small">Descrizione dettagliata *</label>
+                            <textarea class="form-control bg-dark text-white border-secondary" name="description"
+                                rows="4"
+                                placeholder="Descrivi il problema nel dettaglio: cosa stavi facendo, cosa è successo, cosa ti aspettavi..."
+                                required></textarea>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label text-muted small">Screenshot o Video (opzionale)</label>
+                            <div class="file-upload-area" id="bugUploadArea" data-file-input-id="bugMedia"
+                                data-default-label="Clicca o trascina un file">
+                                <i class="bi bi-cloud-arrow-up d-block mb-2"></i>
+                                <span class="text-muted small" data-upload-label>Clicca o trascina un file</span>
+                                <div id="bugPreview"></div>
+                            </div>
+                            <input type="file" id="bugMedia" name="media" accept="image/*,video/*" class="d-none"
+                                data-preview-target="bugPreview" data-upload-area-id="bugUploadArea">
+                            <small class="text-muted">Formati: JPG, PNG, GIF, MP4, MOV (max 20MB)</small>
+                        </div>
+
+                        <button type="submit" class="btn btn-danger">
+                            <i class="bi bi-send me-1"></i>Invia Segnalazione
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- PROPOSAL TAB -->
+        <div class="tab-pane fade" id="proposal" role="tabpanel">
+            <div class="card bg-dark border-info">
+                <div class="card-header border-info">
+                    <i class="bi bi-lightbulb-fill text-info me-2"></i>Proponi una Nuova Funzionalità
+                </div>
+                <div class="card-body">
+                    <form action="{{ url_for('admin_custom.invia_feedback') }}" method="POST" enctype="multipart/form-data">
+                        <input type="hidden" name="feedback_type" value="proposal">
+
+                        <div class="mb-3">
+                            <label class="form-label text-muted small">Titolo della proposta *</label>
+                            <input type="text" class="form-control bg-dark text-white border-secondary" name="title"
+                                placeholder="Es: Aggiungere statistiche avanzate..." required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label text-muted small">Descrizione *</label>
+                            <textarea class="form-control bg-dark text-white border-secondary" name="description"
+                                rows="4"
+                                placeholder="Descrivi la tua idea: cosa vorresti vedere nell'app, perché sarebbe utile..."
+                                required></textarea>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label text-muted small">Immagine di riferimento (opzionale)</label>
+                            <div class="file-upload-area" id="proposalUploadArea" data-file-input-id="proposalMedia"
+                                data-default-label="Clicca per allegare un'immagine">
+                                <i class="bi bi-image d-block mb-2"></i>
+                                <span class="text-muted small" data-upload-label>Clicca per allegare un'immagine</span>
+                                <div id="proposalPreview"></div>
+                            </div>
+                            <input type="file" id="proposalMedia" name="media" accept="image/*" class="d-none"
+                                data-preview-target="proposalPreview" data-upload-area-id="proposalUploadArea">
+                        </div>
+
+                        <button type="submit" class="btn btn-info">
+                            <i class="bi bi-send me-1"></i>Invia Proposta
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- MY FEEDBACKS TAB -->
+        <div class="tab-pane fade" id="myfeedback" role="tabpanel">
+            {% if my_feedbacks %}
+            <div class="list-group">
+                {% for fb in my_feedbacks %}
+                <div class="list-group-item bg-dark border-secondary mb-2 rounded">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div class="flex-grow-1">
+                            <div class="d-flex align-items-center mb-1">
+                                {% if fb.feedback_type == 'bug' %}
+                                <i class="bi bi-bug-fill text-danger me-2"></i>
+                                {% else %}
+                                <i class="bi bi-lightbulb-fill text-info me-2"></i>
+                                {% endif %}
+                                <strong class="text-white">{{ fb.title }}</strong>
+                            </div>
+                            <p class="text-muted small mb-2">{{ fb.description[:100] }}{% if fb.description|length > 100
+                                %}...{% endif %}</p>
+                            <small class="text-muted">
+                                {{ fb.created_at.strftime('%d/%m/%Y %H:%M') }}
+                            </small>
+                        </div>
+                        <span class="badge status-{{ fb.status }}">
+                            {% if fb.status == 'pending' %}⏳ In attesa
+                            {% elif fb.status == 'in_progress' %}🔄 In lavorazione
+                            {% elif fb.status == 'resolved' %}✅ Risolto
+                            {% elif fb.status == 'rejected' %}❌ Rifiutato
+                            {% endif %}
+                        </span>
+                    </div>
+                    {% if fb.admin_response %}
+                    <div class="mt-2 p-2 bg-secondary bg-opacity-25 rounded">
+                        <small class="text-warning"><i class="bi bi-reply me-1"></i>Risposta admin:</small>
+                        <p class="text-white small mb-0">{{ fb.admin_response }}</p>
+                    </div>
+                    {% endif %}
+                    {% if fb.media_path %}
+                    <div class="mt-2">
+                        <a href="/static/{{ fb.media_path }}" target="_blank" class="btn btn-sm btn-outline-secondary">
+                            <i class="bi bi-paperclip me-1"></i>Vedi allegato
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="text-center text-muted py-5">
+                <i class="bi bi-chat-square-text fs-1 d-block mb-2"></i>
+                Non hai ancora inviato feedback.<br>
+                <small>Segnala un bug o proponi una nuova funzionalità!</small>
+            </div>
+            {% endif %}
+        </div>
+
+    </div>
+</div>
+
+{% if current_user.is_admin %}
+<!-- Modal Modifica Release -->
+<div class="modal fade" id="editReleaseModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content bg-dark text-white border-warning">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title text-artiglio"><i class="bi bi-pencil me-2"></i>Modifica Aggiornamento</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="editReleaseId">
+                <div class="mb-3">
+                    <label class="form-label small text-muted">Versione</label>
+                    <input type="text" id="editVersion" class="form-control bg-dark text-white border-secondary">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label small text-muted">Titolo</label>
+                    <input type="text" id="editTitle" class="form-control bg-dark text-white border-secondary">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label small text-muted">Note</label>
+                    <textarea id="editNotes" class="form-control bg-dark text-white border-secondary"
+                        rows="4"></textarea>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="editIsMajor">
+                    <label class="form-check-label text-warning" for="editIsMajor">
+                        <i class="bi bi-star-fill"></i> Major
+                    </label>
+                </div>
+            </div>
+            <div class="modal-footer border-secondary">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
+                <button type="button" class="btn btn-warning" id="saveReleaseBtn">Salva</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

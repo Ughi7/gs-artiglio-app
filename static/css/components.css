@@ -1,0 +1,346 @@
+.mesi-scroll-container {
+        overflow-x: auto;
+        overflow-y: hidden;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: thin;
+        scrollbar-color: var(--artiglio-yellow) #212529;
+        border-radius: 0.375rem;
+        padding: 0.25rem;
+        background-color: var(--artiglio-gray);
+    }
+
+    .mesi-scroll-container::-webkit-scrollbar {
+        height: 6px;
+    }
+
+    .mesi-scroll-container::-webkit-scrollbar-track {
+        background: #212529;
+        border-radius: 3px;
+    }
+
+    .mesi-scroll-container::-webkit-scrollbar-thumb {
+        background: var(--artiglio-yellow);
+        border-radius: 3px;
+    }
+
+    .btn-outline-warning {
+        color: var(--artiglio-yellow);
+        border-color: var(--artiglio-yellow);
+        background-color: var(--artiglio-gray);
+        transition: all 0.3s ease;
+        white-space: nowrap;
+    }
+
+    .btn-outline-warning:hover {
+        background-color: var(--artiglio-yellow);
+        color: black;
+        transform: translateY(-2px);
+        border-color: var(--artiglio-yellow);
+    }
+
+    .btn-outline-warning.active {
+        background-color: var(--artiglio-yellow);
+        color: black;
+        border-color: var(--artiglio-yellow);
+        font-weight: bold;
+    }
+
+    .classifica-hidden {
+        display: none;
+    }
+
+    .btn-outline-artiglio {
+        color: var(--artiglio-yellow);
+        border-color: var(--artiglio-yellow);
+        background-color: transparent;
+    }
+
+    .btn-outline-artiglio:hover {
+        background-color: var(--artiglio-yellow);
+        color: black;
+        border-color: var(--artiglio-yellow);
+    }
+
+/* --- Estratto da presenze.html --- */
+.storico-container {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .storico-item {
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        padding: 10px 12px;
+        background: linear-gradient(135deg, rgba(30, 30, 35, 0.95) 0%, rgba(20, 20, 25, 0.98) 100%);
+        border-radius: 10px;
+        border-left: 3px solid #6c757d;
+        transition: all 0.2s ease;
+    }
+
+    .storico-item:hover {
+        transform: translateX(4px);
+        background: linear-gradient(135deg, rgba(40, 40, 45, 0.95) 0%, rgba(30, 30, 35, 0.98) 100%);
+    }
+
+    .storico-training {
+        border-left-color: #17a2b8;
+    }
+
+    .storico-match {
+        border-left-color: #ffc107;
+    }
+
+    .storico-cancelled {
+        opacity: 0.6;
+        border-left-color: #6c757d;
+    }
+
+    .storico-icon {
+        width: 32px;
+        height: 32px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 8px;
+        font-size: 14px;
+        flex-shrink: 0;
+    }
+
+    .storico-training .storico-icon {
+        background: rgba(23, 162, 184, 0.2);
+        color: #17a2b8;
+    }
+
+    .storico-match .storico-icon {
+        background: rgba(255, 193, 7, 0.2);
+        color: #ffc107;
+    }
+
+    .storico-content {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .storico-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+
+    .storico-title {
+        color: #fff;
+        font-weight: 500;
+        font-size: 0.9rem;
+    }
+
+    .storico-badges {
+        display: flex;
+        gap: 4px;
+        flex-wrap: wrap;
+    }
+
+    .storico-badges .badge {
+        font-size: 0.7rem;
+        padding: 2px 6px;
+    }
+
+    .storico-date {
+        color: #6c757d;
+        font-size: 0.75rem;
+    }
+
+    .storico-notes {
+        margin-top: 6px;
+        padding: 6px 8px;
+        background: rgba(23, 162, 184, 0.1);
+        border-radius: 6px;
+        color: #17a2b8;
+        font-size: 0.75rem;
+    }
+
+/* --- Estratto da rosa.html --- */
+@keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(30px) scale(0.95);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+        }
+    }
+
+    .player-sticker {
+        background: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0) 100%) !important;
+        border: 1px solid rgba(255, 193, 7, 0.1) !important;
+        transition: all 0.5s cubic-bezier(0.23, 1, 0.32, 1) !important;
+        overflow: hidden;
+    }
+
+    .player-sticker:hover {
+        border-color: rgba(255, 193, 7, 0.5) !important;
+        background: linear-gradient(135deg, rgba(255, 193, 7, 0.1) 0%, rgba(255, 255, 255, 0.02) 100%) !important;
+        box-shadow: 0 15px 35px rgba(0, 0, 0, 0.4), 0 0 15px rgba(255, 193, 7, 0.1) !important;
+    }
+
+    .sticker-avatar-container {
+        width: 55px;
+        height: 55px;
+        margin: 0 auto;
+        position: relative;
+        background: var(--gradient-artiglio);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 4px 15px rgba(255, 193, 7, 0.3);
+        transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+
+    .player-sticker:hover .sticker-avatar-container {
+        transform: scale(1.1);
+    }
+
+    .sticker-number {
+        font-size: 1.6rem;
+        font-weight: 800;
+        color: var(--artiglio-black);
+        line-height: 1;
+    }
+
+    .sticker-shine {
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(120deg, transparent, rgba(255, 255, 255, 0.15), transparent);
+        transition: none;
+        pointer-events: none;
+        z-index: 5;
+    }
+
+    .player-sticker:hover .sticker-shine {
+        left: 200%;
+        transition: left 0.8s ease-in-out;
+    }
+
+    .player-card h6 {
+        font-size: 0.95rem;
+        letter-spacing: 0.02em;
+    }
+
+    /* Override per i badge nella card figurina */
+    .player-sticker .badge {
+        font-size: 0.6rem !important;
+        padding: 0.3em 0.6em !important;
+    }
+
+/* --- Estratto da aggiornamenti.html --- */
+/* Timeline Styles */
+    .timeline {
+        position: relative;
+    }
+
+    .timeline-item {
+        position: relative;
+        margin-bottom: 16px;
+    }
+
+    /* Feedback Tabs */
+    .feedback-tabs .nav-link {
+        color: var(--text-muted);
+        border: none;
+        background: transparent;
+        padding: 12px 20px;
+        border-radius: 12px 12px 0 0;
+    }
+
+    .feedback-tabs .nav-link.active {
+        color: var(--artiglio-yellow);
+        background: var(--bg-card);
+        border-bottom: 2px solid var(--artiglio-yellow);
+    }
+
+    .feedback-tabs .nav-link i {
+        font-size: 1.2rem;
+    }
+
+    /* Status badges */
+    .status-pending {
+        background: #6c757d;
+    }
+
+    .status-in_progress {
+        background: #0d6efd;
+    }
+
+    .status-resolved {
+        background: #198754;
+    }
+
+    .status-rejected {
+        background: #dc3545;
+    }
+
+    /* File upload area */
+    .file-upload-area {
+        border: 2px dashed var(--border-color);
+        border-radius: 12px;
+        padding: 24px;
+        text-align: center;
+        transition: all 0.3s ease;
+        cursor: pointer;
+    }
+
+    .file-upload-area:hover,
+    .file-upload-area.dragover {
+        border-color: var(--artiglio-yellow);
+        background: rgba(255, 193, 7, 0.05);
+    }
+
+    .file-upload-area i {
+        font-size: 2rem;
+        color: var(--text-muted);
+    }
+
+    .file-preview {
+        max-width: 100%;
+        max-height: 150px;
+        border-radius: 8px;
+        margin-top: 10px;
+    }
+
+/* --- Residual style from templates/multe.html --- */
+/* === VOTING POLL CARD === */
+    .voting-card {
+        background: linear-gradient(145deg, rgba(30, 30, 30, 1) 0%, rgba(20, 20, 20, 1) 100%);
+        border: 1px solid rgba(13, 202, 240, 0.3);
+        border-radius: 16px;
+        transition: transform 0.3s;
+    }
+
+    .voting-card:hover {
+        border-color: rgba(13, 202, 240, 0.6);
+        transform: translateY(-2px);
+    }
+
+    .quorum-track {
+        height: 8px;
+        background: #333;
+        border-radius: 4px;
+        overflow: hidden;
+        margin-top: 5px;
+    }
+
+    .quorum-bar {
+        height: 100%;
+        background: linear-gradient(90deg, #ffc107, #ff9800);
+        width: 0%;
+        transition: width 1s ease-in-out;
+    }

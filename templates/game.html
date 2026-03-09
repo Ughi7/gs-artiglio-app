@@ -1,0 +1,405 @@
+<!doctype html>
+<html lang="it">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+    <title>GS Artiglio - Floppy Eagle</title>
+    <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@700&display=swap" rel="stylesheet">
+    <link rel="icon"
+        href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🦅</text></svg>">
+    {% block extra_css %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/game.css') }}?v=1772534340">
+    {% endblock %}
+</head>
+
+<body>
+
+    <canvas id="gameCanvas" data-is-admin="{{ 'true' if current_user.is_admin else 'false' }}"></canvas>
+
+    <div id="emoji-layer" aria-hidden="true"></div>
+
+    <div class="hud hidden" id="game-hud">
+        SCORE: <span id="current-score">0</span><br>
+        LIVELLO: <span id="current-level">1</span>
+    </div>
+
+    <div id="coin-display">
+        <span class="coin-icon">🪙</span>
+        <span class="coin-count" id="hud-coin-count">0</span>
+    </div>
+
+    <div id="ui-layer">
+        <!-- Schermata requisiti non soddisfatti -->
+        <div id="requirements-screen" class="hidden">
+            <h1>⚠️ ACCESSO LIMITATO</h1>
+            <p style="font-size: 18px; margin-bottom: 30px;">Per giocare a Floppy Eagle devi soddisfare questi
+                requisiti:</p>
+            <div id="req-mobile" class="requirement">
+                <div style="font-size: 24px; margin-bottom: 5px;">📱</div>
+                <div><strong>Dispositivo Mobile</strong></div>
+                <div style="font-size: 14px; color: #ccc;">Il gioco è disponibile solo su smartphone</div>
+            </div>
+            <div id="req-pwa" class="requirement">
+                <div style="font-size: 24px; margin-bottom: 5px;">📲</div>
+                <div><strong>App Installata</strong></div>
+                <div style="font-size: 14px; color: #ccc;">Installa l'app per poter giocare</div>
+            </div>
+            <div id="req-portrait" class="requirement">
+                <div style="font-size: 24px; margin-bottom: 5px;">📱</div>
+                <div><strong>Orientamento Verticale</strong></div>
+                <div style="font-size: 14px; color: #ccc;">Ruota il dispositivo in posizione verticale</div>
+            </div>
+            <p style="font-size: 16px; color: #FFC107; margin-top: 30px;">✅ Puoi comunque consultare le classifiche!</p>
+            <button class="btn btn-outline" data-action="leaderboard-open"
+                onclick="showLeaderboard()">CLASSIFICA</button>
+            <a href="{{ url_for('main.home') }}" class="btn btn-outline">ESCI</a>
+        </div>
+
+        <div id="start-screen">
+            <!-- Game Title with Premium Gradient Effect -->
+            <h1 style="
+                font-family: 'Impact', 'Arial Black', sans-serif;
+                font-size: 38px; 
+                margin-bottom: 5px; 
+                letter-spacing: 3px;
+                background: linear-gradient(180deg, #FFD700 0%, #FFA500 50%, #FF8C00 100%);
+                -webkit-background-clip: text;
+                -webkit-text-fill-color: transparent;
+                background-clip: text;
+                filter: drop-shadow(0 4px 8px rgba(255, 165, 0, 0.4)) drop-shadow(0 2px 0 #000);
+                animation: titlePulse 2s ease-in-out infinite;
+                text-transform: uppercase;">
+                GS ARTIGLIO
+            </h1>
+            <h2 style="
+                font-family: 'Impact', 'Arial Black', sans-serif;
+                font-size: 28px; 
+                margin: 0 0 10px 0; 
+                letter-spacing: 4px;
+                color: #FFC107;
+                text-shadow: 0 0 20px rgba(255, 193, 7, 0.6), 2px 2px 4px #000;">
+                FLOPPY EAGLE 🦅
+            </h2>
+
+
+            <!-- Big Icon/Logo Placeholder -->
+            <div id="start-screen-skin"
+                style="font-size: 80px; margin: 10px 0; animation: float 3s ease-in-out infinite;">
+                🦅
+            </div>
+
+            <p style="
+                font-size: 14px; 
+                color: #ddd; 
+                margin-bottom: 20px; 
+                line-height: 1.4; 
+                max-width: 300px; 
+                margin-left: auto; 
+                margin-right: auto;">
+                Tocca lo schermo per volare e schivare i tubi!<br>
+                Raccogli <span style="font-size:18px">🍕</span> e <span style="font-size:18px">🍺</span> per punti
+                extra.
+            </p>
+
+            <!-- Buttons Grid -->
+            <div style="display: flex; flex-direction: column; gap: 8px; max-width: 250px; margin: 0 auto 15px auto;">
+                <button class="btn" id="start-btn" onclick="avviaGioco()"
+                    style="font-size: 20px; padding: 12px 0; width: 100%; box-shadow: 0 4px 0 #c69400;">
+                    ▶️ GIOCA ORA
+                </button>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; width: 100%;">
+                    <button class="btn btn-outline d-flex flex-column align-items-center justify-content-center"
+                        onclick="showSkinsScreen()" style="padding: 6px 2px; font-size: 11px; font-weight: bold;">
+                        <span style="font-size: 16px; margin-bottom: 2px;">🎨</span> SKINS
+                    </button>
+                    <button class="btn btn-outline d-flex flex-column align-items-center justify-content-center"
+                        onclick="showShopScreen()" style="padding: 6px 2px; font-size: 11px; font-weight: bold;">
+                        <span style="font-size: 16px; margin-bottom: 2px;">🛒</span> NEGOZIO
+                    </button>
+                    <button class="btn btn-outline d-flex flex-column align-items-center justify-content-center"
+                        onclick="showLeaderboard()" style="padding: 6px 2px; font-size: 11px; font-weight: bold;">
+                        <span style="font-size: 16px; margin-bottom: 2px;">🏆</span> CLASSIFICA
+                    </button>
+                </div>
+            </div>
+
+            <!-- DAILY MISSIONS UI (Compact) -->
+            <div id="missions-container" style="
+                background: rgba(255, 255, 255, 0.08); 
+                backdrop-filter: blur(5px);
+                padding: 12px; 
+                border-radius: 12px; 
+                margin: 0 auto 10px auto; 
+                max-width: 320px; 
+                text-align: left;
+                border: 1px solid rgba(255,255,255,0.1);">
+                <h4
+                    style="margin: 0 0 8px 0; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: #FFC107; display: flex; align-items: center; gap: 5px;">
+                    <span>📅</span> Missioni Giornaliere
+                </h4>
+                <div id="missions-list"
+                    style="font-size: 12px; color: #eee; display: flex; flex-direction: column; gap: 4px;">
+                    <!-- JS Injected -->
+                </div>
+            </div>
+
+            <a href="{{ url_for('main.home') }}" class="btn btn-outline"
+                style="font-size: 13px; padding: 6px 15px; border: none; opacity: 0.7;">↩️ Torna alla Home</a>
+
+            <!-- Top Controls Container -->
+            <div
+                style="position: absolute; top: 5px; left: 0; right: 0; padding: 0 10px; display: flex; justify-content: space-between; z-index: 50;">
+                <!-- Left Group: Vibration & Audio -->
+                <div style="display: flex; gap: 10px;">
+                    <button id="vib-toggle-btn" class="btn btn-outline" onclick="toggleVibration()"
+                        style="width: 40px; height: 40px; padding: 0; display: flex; align-items: center; justify-content: center; font-size: 20px; border-radius: 50%; background: rgba(0,0,0,0.5); line-height: 1;">
+                        📳
+                    </button>
+                    <button id="mute-btn" class="btn btn-outline" onclick="toggleMute()"
+                        style="width: 40px; height: 40px; padding: 0; display: flex; align-items: center; justify-content: center; font-size: 20px; border-radius: 50%; background: rgba(0,0,0,0.5); line-height: 1;">
+                        🔈
+                    </button>
+                </div>
+
+                <!-- Right Group: Info -->
+                <button class="btn btn-outline" onclick="showInfoScreen()"
+                    style="width: 40px; height: 40px; padding: 0; display: flex; align-items: center; justify-content: center; font-size: 20px; border-radius: 50%; background: rgba(0,0,0,0.5); line-height: 1;">
+                    ℹ️
+                </button>
+            </div>
+
+        </div>
+
+        <!-- INFO SCREEN -->
+        <div id="info-screen" class="hidden"
+            style="background: #000; padding: 20px 15px; border-radius: 20px; border: 2px solid #FFC107; text-align: center; color: white; pointer-events: auto; box-shadow: 0 0 30px rgba(255, 193, 7, 0.3); width: 90%; max-width: 400px; max-height: 85vh; overflow-y: auto; position: absolute; z-index: 9999;">
+            <h2 style="margin-bottom: 15px; color: #FFC107;">ℹ️ INFO & REGOLE</h2>
+
+            <div class="btn-group mb-3" role="group" style="display: flex; gap: 5px; justify-content: center;">
+                <button type="button" class="btn btn-sm active" id="tabRules" onclick="showInfoTab('rules')"
+                    style="flex: 1; font-size: 14px; padding: 6px;">📋 Regole</button>
+                <button type="button" class="btn btn-sm btn-outline-secondary" id="tabScoreOps"
+                    onclick="showInfoTab('scoreops')" style="flex: 1; font-size: 14px; padding: 6px;">📊
+                    Punteggi</button>
+            </div>
+
+            <div id="info-tab-rules" style="text-align: left; font-size: 14px; line-height: 1.5;">
+                <h4 style="color: #FFD700; margin-bottom: 5px;">🎯 Obiettivo</h4>
+                <p style="margin-bottom: 15px; color: #ccc;">
+                    Raccogli <strong style="color: gold;">🍕</strong> e <strong style="color: orange;">🍺</strong> per
+                    fare punti,
+                    le <strong style="color: yellow;">🪙</strong> per comprare nel negozio.
+                    <br>💎 <strong style="color: #00FFFF;">Diamante</strong> = 50 monete! (Rarissimo!)
+                    <br>⚠️ Evita le <strong style="color: red;">❌</strong> che tolgono punti!
+                </p>
+
+                <h4 style="color: #FFD700; margin-bottom: 5px;">⚡ Power-ups</h4>
+                <ul style="list-style: none; padding: 0; color: #eee;">
+                    <li><strong style="color: #4CAF50;">🛡️ Scudo:</strong> Distrugge il tubo alla collisione (si
+                        consuma).</li>
+                    <li><strong style="color: #EEEEEE;">👻 Fantasma:</strong> Attraversi i tubi (trasparente).</li>
+                    <li><strong style="color: #2196F3;">🐌 Slow Motion:</strong> Rallenta il tempo.</li>
+                    <li><strong style="color: #F44336;">🧲 Magnete:</strong> Attira pizze, birre e monete.</li>
+                    <li><strong style="color: #FF9800;">🐜 Tiny Mode:</strong> Rimpicciolisce l'aquila.</li>
+                    <li><strong style="color: #9C27B0;">🎰 Punti Doppi:</strong> Moltiplica i punti raccolti.</li>
+                    <li><strong style="color: #E91E63;">🔫 Laser:</strong> Distrugge i tubi davanti a te.</li>
+                    <li><strong style="color: #FF5722;">🔥 Fuoco:</strong> Combo immediata +3!</li>
+                </ul>
+            </div>
+
+            <div id="info-tab-scoreops" class="hidden" style="text-align: left; font-size: 14px;">
+                <h4 style="color: #FFD700; margin-bottom: 10px; text-align: center;">💯 Tabella Punteggi</h4>
+                <table style="width: 100%; border-collapse: collapse; color: #eee;">
+                    <tr style="border-bottom: 1px solid #444;">
+                        <td style="padding: 5px;">🏗️ Passaggio Tubo</td>
+                        <td style="text-align: right; color: #4CAF50;">+25 pt</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid #444;">
+                        <td style="padding: 5px;">🍕 Pizza / 🍺 Birra</td>
+                        <td style="text-align: right; color: #FFD700;">+100 pt</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid #444;">
+                        <td style="padding: 5px;">🪙 Moneta</td>
+                        <td style="text-align: right; color: #2196F3;">0 pt (Valuta)</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid #444;">
+                        <td style="padding: 5px;">❌ Ostacolo</td>
+                        <td style="text-align: right; color: #F44336;">-100 pt</td>
+                    </tr>
+                </table>
+
+                <h4 style="color: #FFD700; margin: 15px 0 5px 0; text-align: center;">🔥 Combo System</h4>
+                <p style="color: #ccc; font-size: 13px; text-align: center; margin-bottom: 10px;">
+                    Raccogli oggetti <strong>dello STESSO TIPO</strong> in sequenza. I punti indicati sono <strong>per
+                        ogni oggetto</strong> della serie!
+                </p>
+                <div
+                    style="display: flex; flex-wrap: wrap; justify-content: center; gap: 15px; background: rgba(255,255,255,0.05); padding: 10px; border-radius: 8px;">
+                    <div style="text-align: center;">
+                        <div style="font-size: 16px; color: #fff;">125 pt</div>
+                        <div style="font-size: 10px; color: #aaa;">2 di Fila (1.25x)</div>
+                    </div>
+                    <div style="text-align: center;">
+                        <div style="font-size: 16px; color: #FFD700;">200 pt</div>
+                        <div style="font-size: 10px; color: #aaa;">5 di Fila (2.0x)</div>
+                    </div>
+                    <div style="text-align: center;">
+                        <div style="font-size: 16px; color: #FF5252;">300 pt</div>
+                        <div style="font-size: 10px; color: #aaa;">10 di Fila (3.0x)</div>
+                    </div>
+                    <div style="text-align: center;">
+                        <div style="font-size: 16px; color: #E040FB;">600 pt</div>
+                        <div style="font-size: 10px; color: #aaa;">20 di Fila (6.0x)</div>
+                    </div>
+                    <div style="text-align: center;">
+                        <div style="font-size: 16px; color: #00E676;">900 pt</div>
+                        <div style="font-size: 10px; color: #aaa;">30 di Fila (9.0x)</div>
+                    </div>
+                </div>
+            </div>
+
+            <button class="btn btn-outline" style="margin-top: 20px;" onclick="hideInfoScreen()">❌ CHIUDI</button>
+        </div>
+
+        <!-- DEDICATED SKINS SCREEN -->
+        <div id="skins-screen" class="hidden" style="pointer-events: auto !important;">
+            <h1 style="margin-bottom: 15px;"> 🎨 SKINS </h1>
+
+            <!-- Skin Info Box (TOP) -->
+            <div id="skin-info-box"
+                style="margin: 0 auto 20px auto; max-width: 280px; padding: 15px; background: rgba(0,0,0,0.6); border-radius: 16px; text-align: center;">
+                <div id="preview-emoji" style="font-size: 60px; margin-bottom: 8px;">🦅</div>
+                <div id="preview-name"
+                    style="font-size: 18px; color: #FFC107; text-transform: uppercase; margin-bottom: 8px;">Aquila</div>
+                <div id="unlock-info-text" style="font-size: 13px; color: #ccc; margin-bottom: 10px;">Seleziona una skin
+                </div>
+                <button class="btn" id="equip-skin-btn"
+                    style="display: none; padding: 8px 20px; font-size: 14px;">EQUIPAGGIA</button>
+            </div>
+
+            <!-- Skins Grid (BOTTOM) -->
+            <div id="skins-grid"
+                style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; width: 100%; box-sizing: border-box; margin: 0 auto 20px auto; padding: 0 10px;">
+                <!-- Populated by JS -->
+            </div>
+
+            <button class="btn btn-outline" id="skins-back-btn">⬅️ INDIETRO</button>
+        </div>
+
+        <!-- SHOP SCREEN -->
+        <div id="shop-screen" class="hidden"
+            style="background: #000; padding: 20px 15px; border-radius: 20px; border: 2px solid #FFC107; text-align: center; color: white; pointer-events: auto; box-shadow: 0 0 30px rgba(255, 193, 7, 0.3); width: 90%; max-width: 400px; max-height: 85vh; overflow-y: auto !important; -webkit-overflow-scrolling: touch; touch-action: auto !important; position: absolute; z-index: 9999;">
+            <h1 style="margin-bottom: 10px;">🛒 NEGOZIO</h1>
+
+            <!-- Saldo Monete -->
+            <div
+                style="background: linear-gradient(135deg, #FFD700, #FFA500); padding: 10px 20px; border-radius: 30px; display: inline-block; margin-bottom: 20px;">
+                <span style="font-size: 24px; color: #000; font-weight: bold;">🪙 <span
+                        id="shop-coins-display">0</span></span>
+            </div>
+
+            <!-- Griglia Prodotti -->
+            <div id="shop-items-grid"
+                style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 20px;">
+                <!-- Populated by JS -->
+            </div>
+
+            <button class="btn btn-outline" onclick="hideShopScreen()">⬅️ INDIETRO</button>
+        </div>
+
+        <div id="game-over-screen" class="hidden">
+            <h1>GAME OVER</h1>
+            <div class="score-display" id="final-score">0</div>
+            <p>Miglior Punteggio: <span id="best-score">0</span></p>
+            <button class="btn" id="restart-btn" onclick="riavviaGioco()">RIPROVA</button>
+            <button class="btn btn-outline" onclick="showLeaderboard()">CLASSIFICA</button>
+            <a href="{{ url_for('game.game') }}" class="btn btn-outline">ESCI</a>
+        </div>
+
+        <div id="leaderboard-screen" class="hidden">
+            <h2>CLASSIFICA FLOPPY EAGLE</h2>
+            <div class="btn-group mb-3" role="group">
+                <button type="button" class="btn btn-warning btn-sm active" id="tabGenerale"
+                    onclick="showTab('generale')">Generale</button>
+                <button type="button" class="btn btn-outline-secondary btn-sm" id="tabMensile"
+                    onclick="showTab('mensile')">Mensile</button>
+            </div>
+
+            <!-- Filtro mese per classifica mensile -->
+            <div id="month-filter" style="display:none; margin-bottom: 1.5rem;">
+                <label class="text-white small mb-2 d-block text-center"
+                    style="font-size: 0.9rem; letter-spacing: 1px; text-transform: uppercase;">📅 Seleziona Mese</label>
+                <select class="form-select bg-dark text-warning border-warning" style="font-family: 'Oswald', sans-serif; 
+                               font-size: 1rem; 
+                               padding: 0.75rem 1rem; 
+                               border-width: 2px; 
+                               border-radius: 12px; 
+                               box-shadow: 0 0 15px rgba(255, 193, 7, 0.3); 
+                               transition: all 0.3s ease;
+                               cursor: pointer;" onchange="updateMonthlyLeaderboard(this.value)"
+                    onmouseover="this.style.boxShadow='0 0 25px rgba(255, 193, 7, 0.5)'; this.style.transform='scale(1.02)'"
+                    onmouseout="this.style.boxShadow='0 0 15px rgba(255, 193, 7, 0.3)'; this.style.transform='scale(1)'">
+                    {% for month_option in available_months %}
+                    {% set parts = month_option.split('-') %}
+                    {% set month_name = ['Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno', 'Luglio',
+                    'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre'][parts[1]|int - 1] %}
+                    <option value="{{ month_option }}" {% if month_option==filter_month %}selected{% endif %}>
+                        🏆 {{ month_name }} {{ parts[0] }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div id="tab-generale">
+                <ul class="leaderboard-list" id="leaderboard-generale">
+                    {% for player in leaderboard %}
+                    <li class="leaderboard-item" data-player-id="{{ player.id }}" data-position="{{ loop.index }}">
+                        <span class="rank-num">{{ loop.index }}.</span>
+                        <span class="player-name">{{ player.soprannome or player.nome_completo }}</span>
+                        <span class="rank-change"></span>
+                        <span class="player-score">{{ player.flappy_high_score }}</span>
+                    </li>
+                    {% else %}
+                    <li class="leaderboard-item" style="justify-content: center;">Nessun punteggio registrato</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            <div id="tab-mensile" style="display:none;">
+                <ul class="leaderboard-list">
+                    {% for player, score in leaderboard_mese %}
+                    <li class="leaderboard-item">
+                        <span class="rank-num">{{ loop.index }}.</span>
+                        <span class="player-name">{{ player.soprannome or player.nome_completo }}</span>
+                        <span class="player-score">{{ score }}</span>
+                    </li>
+                    {% else %}
+                    <li class="leaderboard-item" style="justify-content: center;">Nessun punteggio registrato questo
+                        mese</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            <button class="btn btn-outline" data-action="leaderboard-close" onclick="hideLeaderboard()">CHIUDI</button>
+        </div>
+
+    </div>
+
+    <script src="{{ url_for('static', filename='js/pages/game-ui.js') }}" charset="utf-8"></script>
+    <script src="{{ url_for('static', filename='js/pages/game.js') }}" charset="utf-8"></script>
+    <script>
+        (function () {
+            var canvas = document.getElementById('gameCanvas');
+            var isAdmin = canvas ? canvas.dataset.isAdmin === 'true' : false;
+            if (typeof window.initGameUI === 'function') {
+                window.initGameUI(isAdmin);
+            }
+            if (typeof window.initGameEngine === 'function') {
+                window.initGameEngine(isAdmin);
+            }
+        })();
+    </script>
+</body>
+
+</html>

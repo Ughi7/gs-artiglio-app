@@ -1,0 +1,112 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <!-- Header -->
+            <div class="text-center mb-5">
+                <h1 class="display-4 text-warning mb-2">🏆 ASSEGNAZIONE BADGE MENSILI</h1>
+                <p class="text-muted">Assegna automaticamente i badge ai vincitori del mese precedente</p>
+            </div>
+
+            <!-- Form per assegnazione -->
+            {% if not risultati %}
+            <div class="card bg-dark border-warning shadow-lg mb-4">
+                <div class="card-body text-center py-5">
+                    <i class="bi bi-trophy text-warning" style="font-size: 4rem;"></i>
+                    <h3 class="text-white mt-3 mb-4">Pronto per assegnare i badge?</h3>
+                    <p class="text-muted mb-4">Clicca il bottone per processare automaticamente i badge del mese
+                        precedente</p>
+                    <form method="POST">
+                        <button type="submit" class="btn btn-warning btn-lg px-5 py-3">
+                            <i class="bi bi-star-fill me-2"></i>
+                            Assegna Badge del Mese Precedente
+                        </button>
+                    </form>
+                </div>
+            </div>
+            {% else %}
+            <!-- Risultati -->
+            <div class="alert alert-success mb-4">
+                <i class="bi bi-check-circle-fill me-2"></i>
+                <strong>Assegnazione completata per {{ mese }}/{{ anno }}</strong>
+            </div>
+
+            <div class="row g-4">
+                {% for risultato in risultati %}
+                <div class="col-md-6">
+                    <div class="card bg-dark border-secondary shadow h-100">
+                        <div class="card-body">
+                            <div class="d-flex align-items-center mb-3">
+                                <h4 class="mb-0 text-warning">{{ risultato.tipo }}</h4>
+                                <div class="ms-auto">
+                                    {% if risultato.assegnato %}
+                                    <span class="badge bg-success">✅ Assegnato</span>
+                                    {% elif risultato.utente != 'Nessuno' %}
+                                    <span class="badge bg-secondary">⚠️ Già esistente</span>
+                                    {% else %}
+                                    <span class="badge bg-dark border border-secondary">❌ Nessuno</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="text-white">
+                                <p class="mb-1">
+                                    <strong>Vincitore:</strong>
+                                    <span class="text-info">{{ risultato.utente }}</span>
+                                </p>
+                                <p class="mb-0">
+                                    <strong>Valore:</strong>
+                                    <span class="text-muted">{{ risultato.valore }}</span>
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+
+            <div class="text-center mt-5">
+                <a href="{{ url_for('main.home') }}" class="btn btn-outline-secondary px-4 me-2">
+                    <i class="bi bi-house-fill me-2"></i>Torna alla Home
+                </a>
+                <form method="POST" class="d-inline">
+                    <button type="submit" class="btn btn-warning px-4">
+                        <i class="bi bi-arrow-clockwise me-2"></i>Ri-esegui Assegnazione
+                    </button>
+                </form>
+            </div>
+            {% endif %}
+
+            <!-- Info Box -->
+            <div class="card bg-dark border-info mt-5">
+                <div class="card-body">
+                    <h5 class="text-info mb-3"><i class="bi bi-info-circle me-2"></i>Come funziona</h5>
+                    <ul class="text-muted mb-0">
+                        <li>I badge vengono assegnati automaticamente ai vincitori del <strong>mese precedente</strong>
+                        </li>
+                        <li><strong>Top Donatore:</strong> Chi ha totalizzato più multe (€)</li>
+                        <li><strong>Top Denunciatore:</strong> Chi ha fatto più denunce</li>
+                        <li><strong>Top MVP:</strong> Chi ha vinto più MVP nelle partite</li>
+                        <li><strong>Top Floppy Eagle:</strong> Miglior punteggio mensile al gioco</li>
+                        <li>I badge già assegnati non vengono duplicati</li>
+                    </ul>
+
+                    <hr class="border-secondary my-4">
+                    <h5 class="text-warning mb-3"><i class="bi bi-magic me-2"></i>Sincronizzazione Skin Retroattive</h5>
+                    <p class="text-muted small mb-3">
+                        Se hai assegnato dei badge "Top" nei mesi scorsi ma i giocatori non hanno ancora ricevuto la
+                        relativa Skin Premio (Zanzara, Corvo, Colomba, Capra), usa questo pulsante per sbloccarle a
+                        tutti
+                        in una volta sola. L'operazione non invierà doppie notifiche spam.
+                    </p>
+                    <a href="{{ url_for('admin_custom.admin_fix_top_skins_retroattiva') }}" class="btn btn-outline-warning btn-sm"
+                        onclick="return confirm('Vuoi assegnare le skin mancanti a tutti i vincitori dei Top Badge passati?');">
+                        <i class="bi bi-arrow-repeat me-2"></i>Sincronizza Skin Retroattive
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

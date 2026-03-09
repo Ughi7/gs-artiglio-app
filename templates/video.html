@@ -1,0 +1,251 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-2">
+    <h2 class="text-artiglio mb-0">
+        <i class="bi bi-camera-video-fill me-2"></i>VIDEO ANALYSIS
+    </h2>
+    <div class="d-flex gap-2">
+        <button class="btn btn-outline-info btn-sm" type="button" data-bs-toggle="collapse"
+            data-bs-target="#infoVideoAnalysis">
+            <i class="bi bi-info-circle"></i>
+        </button>
+        <button class="btn btn-warning fw-bold" data-bs-toggle="modal" data-bs-target="#uploadVideoModal">
+            <i class="bi bi-upload"></i> Carica Video
+        </button>
+    </div>
+</div>
+
+<!-- Info Box Collapsibile -->
+<div class="collapse mb-3" id="infoVideoAnalysis">
+    <div class="alert alert-info" role="alert">
+        <h6 class="alert-heading mb-2">
+            <i class="bi bi-info-circle-fill me-2"></i>Cos'è Video Analysis?
+        </h6>
+        <p class="mb-2 small">
+            Questa sezione ti permette di condividere le migliori giocate con la squadra! 🏐
+        </p>
+        <ul class="small mb-0">
+            <li><strong>Carica video</strong> di max 1 minuto (MP4, MOV, AVI, WEBM)</li>
+            <li><strong>Tagga i protagonisti</strong> della giocata</li>
+            <li><strong>Associa una partita</strong> per tenere traccia</li>
+            <li><strong>Commenta e metti like</strong> ai video dei compagni</li>
+            <li><strong>Rispondi ai commenti</strong> come su WhatsApp</li>
+            <li><strong>Scarica i video</strong> per salvarli</li>
+        </ul>
+    </div>
+</div>
+
+{% if videos.items %}
+<div class="row g-3">
+    {% for video in videos.items %}
+    <div class="col-12 col-md-6 col-lg-4" id="video-{{ video.id }}">
+        <div class="card bg-dark border-secondary h-100 shadow">
+            <!-- Video Player -->
+            <div class="ratio ratio-16x9">
+                <video controls preload="metadata" class="rounded-top">
+                    <source src="{{ url_for('static', filename='videos/' + video.filename) }}" type="video/mp4">
+                    Il tuo browser non supporta i video.
+                </video>
+            </div>
+
+            <div class="card-body">
+                <!-- Titolo e Info -->
+                <h6 class="card-title text-white mb-1">{{ video.title }}</h6>
+                <small class="text-muted d-block mb-2">
+                    <i class="bi bi-person-fill"></i>
+                    {{ video.uploader.soprannome if video.uploader.soprannome else video.uploader.nome_completo }}
+                    · {{ video.created_at.strftime('%d/%m/%Y') }}
+                </small>
+
+                {% if video.description %}
+                <p class="card-text small text-white-50 mb-2">{{ video.description }}</p>
+                {% endif %}
+
+                <!-- Protagonisti -->
+                {% if video.protagonists %}
+                <div class="mb-2">
+                    {% for p in video.protagonists %}
+                    <span class="badge bg-info text-dark me-1">{{ p.soprannome if p.soprannome else p.nome_completo
+                        }}</span>
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                <!-- Partita associata -->
+                {% if video.event %}
+                <div class="mb-2">
+                    <span class="badge bg-secondary">
+                        <i class="bi bi-trophy"></i> vs {{ video.event.opponent_name }}
+                    </span>
+                </div>
+                {% endif %}
+
+                <!-- Actions: Like, Comment, Download, Edit -->
+                <div class="d-flex justify-content-between align-items-center border-top border-secondary pt-2 mt-2">
+                    <div class="d-flex gap-2">
+                        <!-- Like Button -->
+                        <button class="btn btn-sm btn-outline-danger like-btn video-like-btn" data-video-id="{{ video.id }}"
+                            type="button">
+                            <i
+                                class="bi {{ 'bi-heart-fill' if video.is_liked_by(current_user.id) else 'bi-heart' }}"></i>
+                            <span class="like-count">{{ video.like_count() }}</span>
+                        </button>
+
+                        <!-- Comments Link (opens separate page) -->
+                        <a href="{{ url_for('video.video_comments', video_id=video.id) }}"
+                            class="btn btn-sm btn-outline-info">
+                            <i class="bi bi-chat"></i> {{ video.comments|length }}
+                        </a>
+
+                        <!-- Download -->
+                        <a href="{{ url_for('video.video_download', video_id=video.id) }}"
+                            class="btn btn-sm btn-outline-success">
+                            <i class="bi bi-download"></i>
+                        </a>
+                    </div>
+
+                    <!-- Edit & Delete (solo uploader o admin) -->
+                    {% if video.user_id == current_user.id or current_user.is_admin %}
+                    <div class="d-flex gap-1">
+                        <a href="{{ url_for('video.video_edit', video_id=video.id) }}" class="btn btn-sm btn-outline-warning">
+                            <i class="bi bi-pencil"></i>
+                        </a>
+                        <form action="{{ url_for('video.video_delete', video_id=video.id) }}" method="POST"
+                            class="confirm-delete-video" data-confirm-message="Eliminare questo video?">
+                            <button type="submit" class="btn btn-sm btn-outline-secondary">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </form>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- Pagination -->
+{% if videos.pages > 1 %}
+<nav class="mt-4">
+    <ul class="pagination justify-content-center">
+        {% if videos.has_prev %}
+        <li class="page-item">
+            <a class="page-link bg-dark text-white border-secondary"
+                href="{{ url_for('video.video_list', page=videos.prev_num) }}">
+                <i class="bi bi-chevron-left"></i>
+            </a>
+        </li>
+        {% endif %}
+
+        {% for p in videos.iter_pages() %}
+        {% if p %}
+        <li class="page-item {{ 'active' if p == videos.page else '' }}">
+            <a class="page-link {{ 'bg-warning text-dark' if p == videos.page else 'bg-dark text-white border-secondary' }}"
+                href="{{ url_for('video.video_list', page=p) }}">{{ p }}</a>
+        </li>
+        {% else %}
+        <li class="page-item disabled"><span class="page-link bg-dark text-secondary border-secondary">...</span></li>
+        {% endif %}
+        {% endfor %}
+
+        {% if videos.has_next %}
+        <li class="page-item">
+            <a class="page-link bg-dark text-white border-secondary"
+                href="{{ url_for('video.video_list', page=videos.next_num) }}">
+                <i class="bi bi-chevron-right"></i>
+            </a>
+        </li>
+        {% endif %}
+    </ul>
+</nav>
+{% endif %}
+
+{% else %}
+<div class="text-center py-5">
+    <i class="bi bi-camera-video display-1 text-muted"></i>
+    <h4 class="text-muted mt-3">Nessun video ancora</h4>
+    <p class="text-muted">Sii il primo a condividere una giocata!</p>
+    <button class="btn btn-warning fw-bold" data-bs-toggle="modal" data-bs-target="#uploadVideoModal">
+        <i class="bi bi-upload"></i> Carica il primo video
+    </button>
+</div>
+{% endif %}
+
+<!-- Modal Upload Video -->
+<div class="modal fade" id="uploadVideoModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content bg-dark border-warning text-white">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title text-artiglio">
+                    <i class="bi bi-camera-video-fill me-2"></i>Carica Video
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="{{ url_for('video.video_upload') }}" method="POST" enctype="multipart/form-data">
+                <div class="modal-body">
+                    <!-- Video File -->
+                    <div class="mb-3">
+                        <label class="form-label text-warning">Video (max 1 minuto, MP4/MOV/AVI/WEBM)</label>
+                        <input type="file" name="video_file" class="form-control bg-black text-white border-secondary"
+                            accept="video/mp4,video/mov,video/avi,video/webm" required>
+                    </div>
+
+                    <!-- Title -->
+                    <div class="mb-3">
+                        <label class="form-label text-warning">Titolo *</label>
+                        <input type="text" name="title" class="form-control bg-black text-white border-secondary"
+                            maxlength="100" placeholder="Es: Ace pazzesco di Marco" required>
+                    </div>
+
+                    <!-- Description -->
+                    <div class="mb-3">
+                        <label class="form-label text-warning">Descrizione</label>
+                        <textarea name="description" class="form-control bg-black text-white border-secondary" rows="2"
+                            maxlength="500" placeholder="Descrivi la giocata..."></textarea>
+                    </div>
+
+                    <!-- Protagonists (checkbox list) -->
+                    <div class="mb-3">
+                        <label class="form-label text-warning">Protagonisti</label>
+                        <div class="border border-secondary rounded p-2" style="max-height: 150px; overflow-y: auto;">
+                            {% for player in players %}
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="protagonists"
+                                    value="{{ player.id }}" id="prot_{{ player.id }}">
+                                <label class="form-check-label text-white" for="prot_{{ player.id }}">
+                                    {{ player.soprannome if player.soprannome else player.nome_completo }}
+                                </label>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        <small class="text-muted">Seleziona i giocatori protagonisti del video</small>
+                    </div>
+
+                    <!-- Event -->
+                    <div class="mb-3">
+                        <label class="form-label text-warning">Partita (opzionale)</label>
+                        <select name="event_id" class="form-select bg-black text-white border-secondary">
+                            <option value="">-- Nessuna partita --</option>
+                            {% for event in events %}
+                            <option value="{{ event.id }}">
+                                {{ event.date_start.strftime('%d/%m/%Y') }} - vs {{ event.opponent_name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer border-secondary">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
+                    <button type="submit" class="btn btn-warning fw-bold">
+                        <i class="bi bi-upload"></i> Carica
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

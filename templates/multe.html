@@ -1,0 +1,1042 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+<!-- Header con Info e Stats -->
+<div class="d-flex justify-content-between align-items-center mb-2">
+    <h2 class="text-artiglio mb-0">MULTE</h2>
+    <div class="d-flex gap-2">
+        {% if has_regulation %}
+        <a href="{{ url_for('static', filename='files/regolamento.pdf') }}" target="_blank"
+            class="btn btn-outline-warning btn-sm">
+            <i class="bi bi-file-earmark-pdf-fill me-1"></i>Regolamento
+        </a>
+        {% endif %}
+
+        {% if current_user.is_admin or current_user.is_notaio %}
+        <button class="btn btn-outline-secondary btn-sm" data-bs-toggle="modal"
+            data-bs-target="#uploadRegolamentoModal">
+            <i class="bi bi-upload"></i>
+        </button>
+        {% endif %}
+
+        <!-- Bottone Statistiche -->
+        <a href="{{ url_for('main.stats_multe') }}" class="btn btn-outline-info btn-sm">
+            <i class="bi bi-graph-up"></i>
+        </a>
+        <!-- Pulsante Info -->
+        <button class="btn btn-outline-info btn-sm" type="button" data-bs-toggle="collapse" data-bs-target="#infoMulte">
+            <i class="bi bi-info-circle"></i>
+        </button>
+    </div>
+</div>
+
+<!-- Info Box Collapsibile -->
+<div class="collapse mb-3" id="infoMulte">
+    <div class="alert alert-info" role="alert">
+        <h6 class="alert-heading mb-2">
+            <i class="bi bi-info-circle-fill me-2"></i>Come funziona Multe?
+        </h6>
+        <p class="mb-2 small">
+            Il sistema multe della squadra per finanziare la cena di fine anno! 🍕
+        </p>
+        <ul class="small mb-0">
+            <li><strong>Saldo Cassa</strong>: clicca per vedere il dettaglio entrate/uscite</li>
+            <li><strong>PayPal</strong>: paga le multe a distanza comodamente</li>
+            <li><strong>Denunce</strong>: dalla Rosa puoi denunciare infrazioni (approvate da notai/admin)</li>
+            <li><strong>Scadenze</strong>: pagare entro 21 giorni per evitare il badge "SCADUTA"</li>
+            <li><strong>Classifiche</strong>: top donatori generale e mensile</li>
+            <li><strong>Filtri</strong>: filtra per mese o giocatore specifico</li>
+        </ul>
+    </div>
+</div>
+
+<!-- Saldo Cassa Squadra -->
+<div class="card border-0 mb-4 shadow-lg"
+    style="background: linear-gradient(135deg, #4a148c, #1a1a2e); border-bottom: 4px solid var(--artiglio-yellow) !important; cursor: pointer;"
+    data-bs-toggle="modal" data-bs-target="#dettaglioCassaModal">
+    <div class="card-body text-center py-4">
+        <h6 class="text-white-50-always text-uppercase letter-spacing-2">💰 Saldo Cassa Squadra <i
+                class="bi bi-info-circle ms-1"></i></h6>
+        <h1 class="display-3 fw-bold mb-0 text-white cash-total-white">€ <span id="total-cash-display"
+                data-target="{{ saldo_cassa }}">0.00</span></h1>
+        <div class="d-flex justify-content-center gap-4 mt-2">
+            <small class="text-success"><i class="bi bi-arrow-down-circle"></i> Entrate: €{{
+                "%.2f"|format(totale_pagate + totale_entrate_manuali) }}</small>
+            <small class="text-danger"><i class="bi bi-arrow-up-circle"></i> Uscite: €{{ "%.2f"|format(totale_uscite)
+                }}</small>
+        </div>
+        <small class="text-white-50-always">Soldi per la cena di fine anno 🍕 • Clicca per dettagli</small>
+    </div>
+</div>
+
+<!-- Sezione PayPal -->
+<div class="card bg-dark border-info mb-4 shadow-sm">
+    <div class="card-body d-flex justify-content-between align-items-center">
+        <div>
+            <h5 class="text-info fw-bold mb-1"><i class="bi bi-paypal"></i> Paga con PayPal</h5>
+            <p class="text-muted small mb-0">Usa questo link per pagare le multe a distanza.</p>
+        </div>
+        <a href="https://www.paypal.me/FrancescoDegoli" target="_blank"
+            class="btn btn-outline-info fw-bold rounded-pill">
+            Vai a PayPal.me <i class="bi bi-box-arrow-up-right ms-1"></i>
+        </a>
+    </div>
+</div>
+
+<!-- SEZIONE STORICO CASSA (solo admin/notai) -->
+{% if current_user.is_admin or current_user.is_notaio %}
+<div class="card bg-dark border-secondary mb-4 shadow-sm">
+    <div
+        class="card-header bg-black border-secondary d-flex justify-content-between align-items-center storico-cassa-header">
+        <div>
+            <h5 class="mb-0 text-artiglio">
+                <i class="bi bi-cash-stack me-2"></i>STORICO CASSA
+            </h5>
+            <small class="text-muted">Registro entrate e uscite</small>
+        </div>
+        <div class="d-flex gap-2">
+            <button class="btn btn-outline-success btn-sm rounded-pill" data-bs-toggle="modal"
+                data-bs-target="#addTransactionModal" data-type="entrata">
+                <i class="bi bi-plus-circle me-1"></i>Registra Entrata
+            </button>
+            <button class="btn btn-outline-danger btn-sm rounded-pill" data-bs-toggle="modal"
+                data-bs-target="#addTransactionModal" data-type="uscita">
+                <i class="bi bi-dash-circle me-1"></i>Registra Uscita
+            </button>
+        </div>
+    </div>
+    <div class="card-body p-0">
+        {% if transazioni %}
+        <div class="table-responsive">
+            <table class="table table-dark table-hover mb-0">
+                <thead>
+                    <tr class="text-muted small">
+                        <th>Data</th>
+                        <th>Descrizione</th>
+                        <th class="text-end">Importo</th>
+                        <th class="text-end">Azioni</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for trans in transazioni %}
+                    <tr>
+                        <td class="small">{{ trans.date.strftime('%d/%m/%Y') }}</td>
+                        <td>{{ trans.description }}</td>
+                        <td class="text-end text-nowrap">
+                            {% if trans.transaction_type == 'uscita' %}
+                            <span class="text-danger fw-bold text-nowrap">-€{{ "%.2f"|format(trans.amount) }}</span>
+                            {% else %}
+                            <span class="text-success fw-bold text-nowrap">+€{{ "%.2f"|format(trans.amount) }}</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end">
+                            <form action="{{ url_for('main.elimina_transazione', trans_id=trans.id) }}" method="POST"
+                                style="display:inline;" class="confirm-submit"
+                                data-confirm-message="Eliminare questa transazione?">
+                                <button type="submit" class="btn btn-sm btn-outline-danger border-0" title="Elimina">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-4 text-muted">
+            <i class="bi bi-inbox fs-1"></i>
+            <p class="mb-0 mt-2">Nessuna transazione registrata</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
+<!-- SEZIONE DENUNCE IN ATTESA DI APPROVAZIONE (visibile a tutti) -->
+{% if denunce_in_attesa %}
+<div class="card bg-dark border-warning mb-4 shadow-sm">
+    <div class="card-header bg-warning bg-opacity-25 border-warning">
+        <h5 class="mb-0 text-warning">
+            <i class="bi bi-hourglass-split me-2"></i>DENUNCE IN ATTESA DI APPROVAZIONE
+            <span class="badge bg-warning text-dark ms-2">{{ denunce_in_attesa|length }}</span>
+        </h5>
+    </div>
+    <div class="card-body p-0">
+        <div class="list-group list-group-flush">
+            {% for denuncia in denunce_in_attesa %}
+            <div class="list-group-item bg-dark border-secondary d-flex justify-content-between align-items-center p-3">
+                <div class="flex-grow-1">
+                    <div class="d-flex align-items-center gap-2 mb-1">
+                        <h6 class="fw-bold text-white mb-0">
+                            {{ denuncia.giocatore.soprannome if denuncia.giocatore.soprannome else
+                            denuncia.giocatore.nome_completo }}
+                        </h6>
+                        <span class="badge bg-warning text-dark">
+                            <i class="bi bi-hourglass"></i> DA APPROVARE
+                        </span>
+                    </div>
+                    <div class="text-muted">{{ denuncia.reason }}</div>
+                    {% if denuncia.note %}
+                    <div class="text-info small mt-1">
+                        <i class="bi bi-chat-left-text me-1"></i>Note: {{ denuncia.note }}
+                    </div>
+                    {% endif %}
+                    <div class="d-flex gap-3 mt-1" style="font-size: 0.75rem;">
+                        <span class="text-secondary">📅 Data: {{ denuncia.date.strftime('%d/%m/%Y') }}</span>
+                        {% if denuncia.denunciante_id %}
+                        {% set denunciante = User.query.get(denuncia.denunciante_id) %}
+                        {% if denunciante %}
+                        <span class="text-info">👤 Denunciato da: {{ denunciante.soprannome if denunciante.soprannome
+                            else denunciante.nome_completo }}</span>
+                        {% endif %}
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="d-flex flex-column align-items-end gap-2">
+                    <span class="badge bg-dark border border-secondary rounded-pill fs-6 text-artiglio">€ {{
+                        "%.2f"|format(denuncia.amount) }}</span>
+                    <div class="btn-group btn-group-sm">
+                        {% if current_user.is_admin or current_user.is_notaio %}
+                        <!-- Admin/Notai possono approvare, rifiutare o mettere ai voti -->
+                        <form action="{{ url_for('main.approva_denuncia', fine_id=denuncia.id) }}" method="POST"
+                            style="display:inline;">
+                            <button type="submit" class="btn btn-success" title="Approva">
+                                <i class="bi bi-check-lg"></i>
+                            </button>
+                        </form>
+                        <form action="{{ url_for('main.avvia_votazione', fine_id=denuncia.id) }}" method="POST"
+                            style="display:inline;" class="confirm-submit"
+                            data-confirm-message="Mettere ai voti questa denuncia? La votazione durerà 24 ore.">
+                            <button type="submit" class="btn btn-info" title="Metti ai Voti">
+                                <i class="bi bi-people-fill"></i> Vota
+                            </button>
+                        </form>
+                        <form action="{{ url_for('main.rifiuta_denuncia', fine_id=denuncia.id) }}" method="POST"
+                            style="display:inline;" class="confirm-submit"
+                            data-confirm-message="Rifiutare questa denuncia?">
+                            <button type="submit" class="btn btn-danger" title="Rifiuta">
+                                <i class="bi bi-x-lg"></i>
+                            </button>
+                        </form>
+                        {% elif denuncia.denunciante_id == current_user.id %}
+                        <!-- Il denunciante può ritirare la propria denuncia -->
+                        <button type="button" class="btn btn-outline-warning" title="Ritira denuncia"
+                            data-bs-toggle="modal" data-bs-target="#ritiraDenunciaModal"
+                            data-denuncia-id="{{ denuncia.id }}">
+                            <i class="bi bi-arrow-counterclockwise"></i> Ritira
+                        </button>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<!-- Modal Ritira Denuncia Spostato in block modals -->
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const ritiraModal = document.getElementById('ritiraDenunciaModal');
+        if (ritiraModal) {
+            ritiraModal.addEventListener('show.bs.modal', function (event) {
+                const button = event.relatedTarget;
+                const denunciaId = button.getAttribute('data-denuncia-id');
+
+                const form = document.getElementById('ritiraDenunciaForm');
+                const noteField = document.getElementById('ritiraDenunciaNote');
+
+                form.action = '/ritira_denuncia/' + denunciaId;
+                noteField.value = '';  // Campo vuoto per il motivo del ritiro
+            });
+        }
+    });
+</script>
+{% endif %}
+
+<!-- SEZIONE DENUNCE IN VOTAZIONE (visibile a tutti) -->
+{% if denunce_in_votazione %}
+<div class="mb-4">
+    <div class="d-flex align-items-center mb-3">
+        <h5 class="text-info fw-bold mb-0">
+            <i class="bi bi-people-fill me-2"></i>VOTAZIONI IN CORSO
+        </h5>
+        <span class="badge bg-info text-dark ms-2 rounded-pill">{{ denunce_in_votazione|length }}</span>
+    </div>
+
+    <div class="row g-3">
+        {% for denuncia in denunce_in_votazione %}
+        <div class="col-12 col-lg-6">
+            <div class="card bg-dark border-secondary p-3 h-100 d-flex flex-column shadow-sm voting-card">
+
+                <!-- Intestazione Card -->
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                    <div class="d-flex align-items-center gap-2">
+                        <span
+                            class="badge bg-info bg-opacity-25 text-info rounded-pill border border-info border-opacity-25 py-1 px-2"
+                            style="font-size: 0.7rem;">
+                            <i class="bi bi-hourglass-split me-1"></i>IN CORSO
+                        </span>
+                        <span class="text-secondary small countdown-timer"
+                            data-end="{{ denuncia.voting_end.isoformat() }}">
+                            <i class="bi bi-clock-fill me-1"></i><span class="countdown-text">--</span>
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Info Denuncia -->
+                <div class="d-flex align-items-center gap-3 mb-2">
+                    <h5 class="fw-bold text-white mb-0">
+                        {{ denuncia.giocatore.soprannome if denuncia.giocatore.soprannome else
+                        denuncia.giocatore.nome_completo }}
+                    </h5>
+                    <span class="badge bg-dark border border-info text-info rounded-pill">€{{
+                        "%.2f"|format(denuncia.amount) }}</span>
+                </div>
+                <div class="text-white-50 small mb-3 fst-italic border-start border-secondary ps-2">
+                    "{{ denuncia.reason }}"
+                </div>
+
+                <!-- Barra Quorum -->
+                <div class="mt-auto">
+                    <div class="d-flex justify-content-between align-items-end small mb-1">
+                        <span class="text-muted">Quorum</span>
+                        <span class="text-white fw-bold">
+                            {{ quorum_per_vote[denuncia.id] }} <span class="text-muted fw-normal">su {{ eligible_voters
+                                - excluded_voters_data[denuncia.id]|length }} votanti</span>
+                        </span>
+                    </div>
+                    {% set total_active_votes = vote_counts[denuncia.id].approve + vote_counts[denuncia.id].reject %}
+                    {% set quorum_val = quorum_per_vote[denuncia.id] %}
+                    {% set percent_quorum = (total_active_votes / quorum_val * 100) if quorum_val > 0 else 0 %}
+                    <div class="quorum-track">
+                        <div class="quorum-bar" style="width: {{ percent_quorum if percent_quorum <= 100 else 100 }}%">
+                        </div>
+                    </div>
+                    <div class="d-flex justify-content-between mt-1" style="font-size: 0.7rem; opacity: 0.7;">
+                        <span class="text-success"><i class="bi bi-hand-thumbs-up-fill"></i> {{
+                            vote_counts[denuncia.id].approve }} SÌ</span>
+                        <span class="text-danger"><i class="bi bi-hand-thumbs-down-fill"></i> {{
+                            vote_counts[denuncia.id].reject }} NO</span>
+                    </div>
+                </div>
+
+                <!-- Pulsanti Azione -->
+                <div
+                    class="mt-3 pt-3 border-top border-secondary border-opacity-25 d-flex justify-content-between align-items-center">
+
+                    <!-- Admin Actions -->
+                    {% if current_user.is_admin or current_user.is_notaio %}
+                    <div class="btn-group btn-group-sm">
+                        <button class="btn btn-outline-secondary btn-sm rounder-circle p-0 me-1"
+                            style="width: 28px; height: 28px;" data-bs-toggle="modal"
+                            data-bs-target="#impostazioniVotazioneModal{{ denuncia.id }}" title="Impostazioni">
+                            <i class="bi bi-gear-fill" style="font-size: 0.8rem;"></i>
+                        </button>
+                        <form action="{{ url_for('main.elimina_votazione', fine_id=denuncia.id) }}" method="POST"
+                            style="display:inline;" class="confirm-submit"
+                            data-confirm-message="Annullare questa votazione?">
+                            <button type="submit" class="btn btn-outline-danger btn-sm rounded-circle p-0"
+                                style="width: 28px; height: 28px;" title="Annulla">
+                                <i class="bi bi-x" style="font-size: 1rem;"></i>
+                            </button>
+                        </form>
+                    </div>
+                    {% else %}
+                    <div></div> <!-- Spacer -->
+                    {% endif %}
+
+                    <!-- Voto Utente -->
+                    <div class="ms-auto">
+                        {% if not current_user.is_coach and not current_user.is_presidente %}
+                        {% if current_user.id in excluded_voters_data[denuncia.id] %}
+                        <span
+                            class="badge bg-secondary bg-opacity-50 text-white-50 border border-secondary border-opacity-25 small py-1 px-2">
+                            <i class="bi bi-person-dash me-1"></i>Escluso
+                        </span>
+                        {% elif user_votes[denuncia.id] is none %}
+                        <div class="d-flex gap-2">
+                            <form action="{{ url_for('main.vota_denuncia', fine_id=denuncia.id) }}" method="POST">
+                                <input type="hidden" name="vote" value="1">
+                                <button type="submit"
+                                    class="btn btn-sm btn-outline-success px-3 fw-bold rounded-pill">SÌ</button>
+                            </form>
+                            <form action="{{ url_for('main.vota_denuncia', fine_id=denuncia.id) }}" method="POST">
+                                <input type="hidden" name="vote" value="0">
+                                <button type="submit"
+                                    class="btn btn-sm btn-outline-danger px-3 fw-bold rounded-pill">NO</button>
+                            </form>
+                        </div>
+                        {% else %}
+                        <div class="d-flex align-items-center gap-2">
+                            <span
+                                class="badge {{ 'bg-success' if user_votes[denuncia.id] else 'bg-danger' }} rounded-pill px-3 py-1">
+                                HAI VOTATO {{ 'SÌ' if user_votes[denuncia.id] else 'NO' }}
+                            </span>
+                            <form action="{{ url_for('main.vota_denuncia', fine_id=denuncia.id) }}" method="POST"
+                                style="display:inline;">
+                                <input type="hidden" name="vote" value="{{ '0' if user_votes[denuncia.id] else '1' }}">
+                                <button type="submit" class="btn btn-link link-light p-0" title="Cambia voto">
+                                    <i class="bi bi-arrow-repeat"></i>
+                                </button>
+                            </form>
+                        </div>
+                        {% endif %}
+                        {% else %}
+                        <span class="text-muted small fst-italic">Solo i giocatori votano</span>
+                        {% endif %}
+                    </div>
+
+                </div>
+
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Modal Impostazioni Votazione (uno per ogni votazione) -->
+{% for denuncia in denunce_in_votazione %}
+<div class="modal fade" id="impostazioniVotazioneModal{{ denuncia.id }}" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content bg-dark text-white border-info">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title text-info">
+                    <i class="bi bi-gear-fill me-2"></i>Impostazioni Votazione - {{ denuncia.giocatore.soprannome or
+                    denuncia.giocatore.nome_completo }}
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="{{ url_for('main.modifica_impostazioni_votazione', fine_id=denuncia.id) }}" method="POST">
+                <div class="modal-body">
+                    <p class="text-muted small mb-3">
+                        Seleziona i giocatori da <strong>escludere</strong> dalla votazione (es. assenti).
+                        Gli esclusi non potranno votare e non conteranno per il quorum.
+                    </p>
+                    <div class="row g-2" style="max-height: 300px; overflow-y: auto;">
+                        {% for user in votanti_eleggibili %}
+                        {% if user.id != denuncia.user_id %}
+                        <div class="col-6 col-md-4">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="excluded_users"
+                                    value="{{ user.id }}" id="excl_{{ denuncia.id }}_{{ user.id }}" {{ 'checked' if
+                                    user.id in excluded_voters_data[denuncia.id] else '' }}>
+                                <label class="form-check-label" for="excl_{{ denuncia.id }}_{{ user.id }}">
+                                    {{ user.soprannome or user.nome_completo }}
+                                </label>
+                            </div>
+                        </div>
+                        {% endif %}
+                        {% endfor %}
+                    </div>
+                </div>
+                <div class="modal-footer border-secondary">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annulla</button>
+                    <button type="submit" class="btn btn-info">Salva Impostazioni</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endfor %}
+
+<!-- Countdown Script per votazioni -->
+<script>
+    function updateCountdowns() {
+        document.querySelectorAll('.countdown-timer').forEach(timer => {
+            const endStr = timer.dataset.end;
+            const end = new Date(endStr);
+            const now = new Date();
+            const diff = end - now;
+
+            const textEl = timer.querySelector('.countdown-text');
+            if (diff <= 0) {
+                textEl.textContent = 'Scaduta!';
+                timer.classList.remove('text-warning');
+                timer.classList.add('text-danger');
+            } else {
+                const hours = Math.floor(diff / (1000 * 60 * 60));
+                const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+                if (hours > 0) {
+                    textEl.textContent = hours + 'h ' + mins + 'm';
+                } else {
+                    const secs = Math.floor((diff % (1000 * 60)) / 1000);
+                    textEl.textContent = mins + 'm ' + secs + 's';
+                }
+            }
+        });
+    }
+    updateCountdowns();
+    setInterval(updateCountdowns, 30000);
+</script>
+{% endif %}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="text-artiglio mb-0">ULTIME SANZIONI</h4>
+
+    {% if current_user.is_admin or current_user.is_notaio %}
+    <button class="btn btn-danger fw-bold rounded-pill shadow" data-bs-toggle="modal" data-bs-target="#addFineModal">
+        <i class="bi bi-lightning-fill"></i> MULTA!
+    </button>
+    {% endif %}
+</div>
+
+<div class="list-group mb-4" id="listaSanzioni">
+    {% for multa in ultime_sanzioni %}
+    <div
+        class="list-group-item bg-dark border-secondary d-flex justify-content-between align-items-center p-3 {{ 'd-none sanzione-hidden' if loop.index > 10 else '' }}">
+
+        <div class="flex-grow-1">
+            <div class="d-flex align-items-center gap-2 mb-1">
+                <h5 class="fw-bold text-white mb-0">
+                    {{ multa.giocatore.soprannome if multa.giocatore.soprannome else multa.giocatore.nome_completo }}
+                </h5>
+
+                {% if multa.paid %}
+                <span class="badge bg-success text-white">
+                    {% if multa.payment_method == 'paypal' %}
+                    <i class="bi bi-paypal"></i> PAYPAL
+                    {% else %}
+                    <i class="bi bi-cash-coin"></i> CONTANTI
+                    {% endif %}
+                </span>
+                {% elif multa.is_overdue() %}
+                <span class="badge bg-danger text-white blink"><i class="bi bi-exclamation-triangle-fill"></i>
+                    SCADUTA</span>
+                {% else %}
+                <span class="badge bg-warning text-dark">DA PAGARE</span>
+                {% endif %}
+            </div>
+
+            <div class="text-muted">{{ multa.reason }}</div>
+
+            <div class="d-flex gap-3 mt-1" style="font-size: 0.75rem;">
+                <span class="text-secondary">📅 Data: {{ multa.date.strftime('%d/%m') }}</span>
+                {% if not multa.paid and multa.deadline %}
+                <span class="text-warning">⏳ Scadenza: {{ multa.deadline.strftime('%d/%m') }}</span>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="d-flex flex-column align-items-end gap-2">
+            <span class="badge bg-dark border border-secondary rounded-pill fs-5 text-artiglio">€ {{
+                "%.2f"|format(multa.amount) }}</span>
+
+            {% if current_user.is_admin or current_user.is_notaio %}
+            <div class="btn-group btn-group-sm">
+                <button class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#editFineModal"
+                    data-id="{{ multa.id }}" data-giocatore="{{ multa.giocatore.nome_completo }}"
+                    data-amount="{{ multa.amount }}" data-reason="{{ multa.reason }}"
+                    data-paid="{{ 'true' if multa.paid else 'false' }}"
+                    data-payment-method="{{ multa.payment_method }}">
+                    <i class="bi bi-pencil-fill"></i>
+                </button>
+                <a href="/elimina_multa/{{ multa.id }}" class="btn btn-outline-danger confirm-click"
+                    data-confirm-message="Eliminare questa multa?">
+                    <i class="bi bi-trash-fill"></i>
+                </a>
+            </div>
+            {% endif %}
+        </div>
+
+    </div>
+    {% else %}
+    <div class="text-center text-muted py-4">
+        Nessuna multa recente... siamo troppo bravi! 😇
+    </div>
+    {% endfor %}
+</div>
+
+{% if ultime_sanzioni|length > 10 %}
+<div class="text-center mb-5">
+    <button class="btn btn-outline-artiglio" id="btnMostraSanzioni" data-total="{{ ultime_sanzioni|length }}">
+        <i class="bi bi-chevron-down me-1"></i><span>Mostra tutte ({{ ultime_sanzioni|length }})</span>
+    </button>
+</div>
+{% endif %}
+
+<!-- CLASSIFICHE -->
+<div class="row mb-4 g-3">
+    <!-- Classifica Generale -->
+    <div class="col-md-6">
+        <div class="card bg-dark border-secondary shadow-sm h-100">
+            <div class="card-header bg-transparent border-secondary text-center py-2">
+                <h6 class="text-artiglio fw-bold mb-0 text-uppercase">🏆 Top Donatori (Generale)</h6>
+            </div>
+            <div class="card-body p-0">
+                {% if classifica_generale %}
+                <ul class="list-group list-group-flush" id="classificaGenerale">
+                    {% for user, total in classifica_generale %}
+                    <li
+                        class="list-group-item bg-dark text-white d-flex justify-content-between align-items-center border-secondary py-2 {{ 'd-none classifica-hidden' if loop.index > 5 else '' }}">
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="fw-bold text-center" style="min-width: 30px;">
+                                {% if loop.index == 1 %}🥇{% elif loop.index == 2 %}🥈{% elif loop.index == 3 %}🥉{%
+                                else %}{{ loop.index }}.{% endif %}
+                            </span>
+                            <span>{{ user.soprannome or user.nome_completo }}</span>
+                        </div>
+                        <span class="badge bg-danger rounded-pill">€ {{ "%.2f"|format(total) }}</span>
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% if classifica_generale|length > 5 %}
+                <div class="text-center py-2 border-top border-secondary">
+                    <button class="btn btn-sm btn-outline-artiglio classifica-toggle-btn"
+                        data-target-list="classificaGenerale" data-total="{{ classifica_generale|length }}">
+                        <i class="bi bi-chevron-down me-1"></i><span>Mostra tutti ({{ classifica_generale|length
+                            }})</span>
+                    </button>
+                </div>
+                {% endif %}
+                {% else %}
+                <div class="text-center py-3 text-muted small">Nessuna multa registrata.</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Classifica Mensile -->
+    <div class="col-md-6">
+        <div class="card bg-dark border-secondary shadow-sm h-100">
+            <div class="card-header bg-transparent border-secondary text-center py-2">
+                <h6 class="text-warning fw-bold mb-0 text-uppercase">📅 Top Donatori ({{ month_label }})</h6>
+            </div>
+            <div class="card-body p-0">
+                {% if classifica_mensile %}
+                <ul class="list-group list-group-flush" id="classificaMensile">
+                    {% for user, total in classifica_mensile %}
+                    <li
+                        class="list-group-item bg-dark text-white d-flex justify-content-between align-items-center border-secondary py-2 {{ 'd-none classifica-hidden' if loop.index > 5 else '' }}">
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="fw-bold text-center" style="min-width: 30px;">
+                                {% if loop.index == 1 %}🥇{% elif loop.index == 2 %}🥈{% elif loop.index == 3 %}🥉{%
+                                else %}{{ loop.index }}.{% endif %}
+                            </span>
+                            <span>{{ user.soprannome or user.nome_completo }}</span>
+                        </div>
+                        <span class="badge bg-warning text-dark rounded-pill">€ {{ "%.2f"|format(total) }}</span>
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% if classifica_mensile|length > 5 %}
+                <div class="text-center py-2 border-top border-secondary">
+                    <button class="btn btn-sm btn-outline-warning classifica-toggle-btn"
+                        data-target-list="classificaMensile" data-total="{{ classifica_mensile|length }}">
+                        <i class="bi bi-chevron-down me-1"></i><span>Mostra tutti ({{ classifica_mensile|length
+                            }})</span>
+                    </button>
+                </div>
+                {% endif %}
+                {% else %}
+                <div class="text-center py-3 text-muted small">
+                    Nessuna multa in questo periodo! 😇
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="text-artiglio mb-0">REGISTRO SANZIONI</h4>
+</div>
+
+<!-- Filtri per Mese e Persona -->
+<div class="row mb-4 g-2">
+    <!-- Filtro Mese -->
+    <div class="col-md-6">
+        <label class="form-label text-white-50 small">Filtra per Mese</label>
+        <div class="mesi-scroll-container shadow">
+            <div class="d-flex flex-nowrap gap-2">
+                <a href="{{ url_for('main.multe', month='all', person=filter_person) }}"
+                    class="btn btn-outline-warning flex-shrink-0 {{ 'active' if filter_month == 'all' else '' }}">
+                    <i class="bi bi-calendar-fill"></i> Tutte
+                </a>
+                {% for month in available_months %}
+                <a href="{{ url_for('main.multe', month=month, person=filter_person) }}"
+                    class="btn btn-outline-warning flex-shrink-0 {{ 'active' if filter_month == month else '' }}">
+                    {{ month }}
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Filtro Persona -->
+    <div class="col-md-6">
+        <label class="form-label text-white-50 small">Filtra per Persona</label>
+        <select class="form-select bg-dark text-white border-secondary" id="personFilter">
+            <option value="all" {{ 'selected' if filter_person=='all' else '' }}>Tutti i giocatori</option>
+            {% for giocatore in elenco_giocatori %}
+            <option value="{{ giocatore.id }}" {{ 'selected' if filter_person==giocatore.id|string else '' }}>
+                {{ giocatore.soprannome or giocatore.nome_completo }}
+            </option>
+            {% endfor %}
+        </select>
+    </div>
+</div>
+
+<div class="list-group mb-4" id="listaRegistro">
+    {% for multa in registro_multe %}
+    <div
+        class="list-group-item bg-dark border-secondary d-flex justify-content-between align-items-center p-3 {{ 'd-none registro-hidden' if loop.index > 10 else '' }}">
+
+        <div class="flex-grow-1">
+            <div class="d-flex align-items-center gap-2 mb-1">
+                <h5 class="fw-bold text-white mb-0">
+                    {{ multa.giocatore.soprannome if multa.giocatore.soprannome else multa.giocatore.nome_completo }}
+                </h5>
+
+                {% if multa.paid %}
+                <span class="badge bg-success text-white">
+                    {% if multa.payment_method == 'paypal' %}
+                    <i class="bi bi-paypal"></i> PAYPAL
+                    {% else %}
+                    <i class="bi bi-cash-coin"></i> CONTANTI
+                    {% endif %}
+                </span>
+                {% elif multa.is_overdue() %}
+                <span class="badge bg-danger text-white blink"><i class="bi bi-exclamation-triangle-fill"></i>
+                    SCADUTA</span>
+                {% else %}
+                <span class="badge bg-warning text-dark">DA PAGARE</span>
+                {% endif %}
+            </div>
+
+            <div class="text-muted">{{ multa.reason }}</div>
+
+            <div class="d-flex gap-3 mt-1" style="font-size: 0.75rem;">
+                <span class="text-secondary">📅 Data: {{ multa.date.strftime('%d/%m') }}</span>
+                {% if not multa.paid and multa.deadline %}
+                <span class="text-warning">⏳ Scadenza: {{ multa.deadline.strftime('%d/%m') }}</span>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="d-flex flex-column align-items-end gap-2">
+            <span class="badge bg-dark border border-secondary rounded-pill fs-5 text-artiglio">€ {{
+                "%.2f"|format(multa.amount) }}</span>
+
+            {% if current_user.is_admin or current_user.is_notaio %}
+            <div class="btn-group btn-group-sm">
+                {% if not multa.paid %}
+                <button class="btn btn-outline-success" data-bs-toggle="modal" data-bs-target="#payFineModal"
+                    data-id="{{ multa.id }}" data-giocatore="{{ multa.giocatore.nome_completo }}">
+                    <i class="bi bi-check-lg"></i>
+                </button>
+                {% endif %}
+                <button class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#editFineModal"
+                    data-id="{{ multa.id }}" data-giocatore="{{ multa.giocatore.nome_completo }}"
+                    data-amount="{{ multa.amount }}" data-reason="{{ multa.reason }}"
+                    data-paid="{{ 'true' if multa.paid else 'false' }}"
+                    data-payment-method="{{ multa.payment_method }}">
+                    <i class="bi bi-pencil-fill"></i>
+                </button>
+                <a href="/elimina_multa/{{ multa.id }}" class="btn btn-outline-danger confirm-click"
+                    data-confirm-message="Sei sicuro di voler eliminare questa multa di {{ multa.giocatore.nome_completo }}?">
+                    <i class="bi bi-trash-fill"></i>
+                </a>
+            </div>
+            {% endif %}
+        </div>
+
+    </div>
+    {% else %}
+    <div class="text-center text-muted py-4">
+        Nessuna multa... siamo troppo bravi! 😇
+    </div>
+    {% endfor %}
+</div>
+
+{% if registro_multe|length > 10 %}
+<div class="text-center mb-5">
+    <button class="btn btn-outline-artiglio" id="btnMostraRegistro" data-total="{{ registro_multe|length }}">
+        <i class="bi bi-chevron-down me-1"></i><span>Mostra tutte ({{ registro_multe|length }})</span>
+    </button>
+</div>
+{% endif %}
+
+<!-- Modal Pagamento Multa -->
+<div class="modal fade" id="payFineModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content bg-dark text-white border-success">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title text-success"><i class="bi bi-cash-coin me-2"></i>Paga Multa</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body text-center py-4">
+                <p class="mb-4">Segna come pagata la multa di <strong id="payGiocatoreDisplay"
+                        class="text-artiglio"></strong></p>
+                <div class="d-flex justify-content-center gap-3">
+                    <form id="payFormContanti" method="POST" class="d-inline">
+                        <input type="hidden" name="metodo" value="contanti">
+                        <button type="submit" class="btn btn-success btn-lg rounded-pill px-4">
+                            <i class="bi bi-cash me-2"></i>Contanti
+                        </button>
+                    </form>
+                    <form id="payFormPaypal" method="POST" class="d-inline">
+                        <input type="hidden" name="metodo" value="paypal">
+                        <button type="submit" class="btn btn-info btn-lg rounded-pill px-4">
+                            <i class="bi bi-paypal me-2"></i>PayPal
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Aggiungi Multa -->
+<div class="modal fade" id="addFineModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content bg-dark text-white border-danger">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title text-danger"><i class="bi bi-plus-circle me-2"></i>Nuova Multa</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="{{ url_for('main.aggiungi_multa') }}" method="POST">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Giocatore</label>
+                        <select name="user_id" class="form-select bg-secondary text-white border-0" required>
+                            <option value="">Seleziona giocatore...</option>
+                            {% for g in elenco_giocatori %}
+                            <option value="{{ g.id }}">{{ g.nome_completo }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Importo (€)</label>
+                        <input type="number" step="0.50" name="amount"
+                            class="form-control bg-secondary text-white border-0" value="2.00" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Motivo</label>
+                        <input type="text" name="reason" class="form-control bg-secondary text-white border-0"
+                            placeholder="Es: Ritardo allenamento" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Data Multa</label>
+                        <input type="date" name="fine_date" class="form-control bg-secondary text-white border-0"
+                            value="{{ now.strftime('%Y-%m-%d') }}">
+                    </div>
+                </div>
+                <div class="modal-footer border-secondary">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annulla</button>
+                    <button type="submit" class="btn btn-danger">Aggiungi Multa</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Modifica Multa -->
+<div class="modal fade" id="editFineModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content bg-dark text-white border-warning">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title text-warning"><i class="bi bi-pencil me-2"></i>Modifica Multa</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="{{ url_for('main.modifica_multa') }}" method="POST">
+                <input type="hidden" name="fine_id" id="editFineId">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Giocatore</label>
+                        <p class="form-control-plaintext text-artiglio fw-bold" id="editGiocatoreDisplay"></p>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Importo (€)</label>
+                        <input type="number" step="0.50" name="amount" id="editAmount"
+                            class="form-control bg-secondary text-white border-0" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Motivo</label>
+                        <input type="text" name="reason" id="editReason"
+                            class="form-control bg-secondary text-white border-0" required>
+                    </div>
+                    <div class="mb-3">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" name="paid" id="editPaid">
+                            <label class="form-check-label" for="editPaid">Pagata</label>
+                        </div>
+                    </div>
+                    <div id="editPaymentMethodSection" class="mb-3" style="display: none;">
+                        <label class="form-label">Metodo di pagamento</label>
+                        <div class="d-flex gap-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="payment_method" value="contanti"
+                                    id="editMethodCash" checked>
+                                <label class="form-check-label" for="editMethodCash"><i
+                                        class="bi bi-cash me-1"></i>Contanti</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="payment_method" value="paypal"
+                                    id="editMethodPaypal">
+                                <label class="form-check-label" for="editMethodPaypal"><i
+                                        class="bi bi-paypal me-1"></i>PayPal</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-secondary">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annulla</button>
+                    <button type="submit" class="btn btn-warning text-dark">Salva Modifiche</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Upload Regolamento -->
+<div class="modal fade" id="uploadRegolamentoModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content bg-dark text-white border-secondary">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title"><i class="bi bi-file-earmark-pdf me-2"></i>Carica Regolamento</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="{{ url_for('main.upload_regolamento') }}" method="POST" enctype="multipart/form-data">
+                <div class="modal-body">
+                    <p class="small text-muted mb-3">Carica il nuovo file del Regolamento Multe. Il file precedente
+                        verrà sovrascritto.</p>
+                    <div class="mb-3">
+                        <label class="form-label">File PDF</label>
+                        <input type="file" name="regolamento_file" class="form-control bg-secondary text-white border-0"
+                            accept=".pdf" required>
+                    </div>
+                </div>
+                <div class="modal-footer border-secondary">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annulla</button>
+                    <button type="submit" class="btn btn-warning text-dark">Carica</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Aggiungi Transazione (Entrata/Uscita Cassa) -->
+<div class="modal fade" id="addTransactionModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content bg-dark text-white" id="transactionModalContent">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title" id="transactionModalTitle">
+                    <i class="bi bi-dash-circle me-2" id="transactionModalIcon"></i>
+                    <span id="transactionModalTitleText">Registra Transazione</span>
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="{{ url_for('main.aggiungi_transazione') }}" method="POST">
+                <input type="hidden" name="transaction_type" id="transactionTypeInput" value="uscita">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Importo (€)</label>
+                        <input type="number" step="0.01" name="amount"
+                            class="form-control bg-secondary text-white border-0" placeholder="Es: 25.00" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Descrizione</label>
+                        <input type="text" name="description" class="form-control bg-secondary text-white border-0"
+                            id="transactionDescriptionPlaceholder" placeholder="Es: Acquisto palloni" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Data</label>
+                        <input type="date" name="date" class="form-control bg-secondary text-white border-0"
+                            value="{{ now.strftime('%Y-%m-%d') }}">
+                    </div>
+                </div>
+                <div class="modal-footer border-secondary">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annulla</button>
+                    <button type="submit" id="transactionSubmitBtn" class="btn btn-danger">Registra Uscita</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Dettaglio Cassa (Contanti vs PayPal) -->
+<div class="modal fade" id="dettaglioCassaModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content bg-dark text-white border-info">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title text-info"><i class="bi bi-wallet2 me-2"></i>Dettaglio Entrate Cassa</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body py-4">
+                <div class="text-center mb-4">
+                    <h6 class="text-white-50 text-uppercase mb-2">Totale Incassato</h6>
+                    <h2 class="text-artiglio fw-bold">€ {{ "%.2f"|format(totale_pagate + totale_entrate_manuali) }}</h2>
+                </div>
+
+                <div class="row g-3">
+                    <div class="col-4">
+                        <div class="card bg-secondary border-0 text-center p-2 h-100">
+                            <div class="text-white-50 small mb-1" style="font-size: 0.7rem;">
+                                <i class="bi bi-cash-coin me-1"></i>Contanti
+                            </div>
+                            <h5 class="text-success fw-bold mb-0">€{{ "%.0f"|format(totale_contanti) }}</h5>
+                        </div>
+                    </div>
+                    <div class="col-4">
+                        <div class="card bg-secondary border-0 text-center p-2 h-100">
+                            <div class="text-white-50 small mb-1" style="font-size: 0.7rem;">
+                                <i class="bi bi-paypal me-1"></i>PayPal
+                            </div>
+                            <h5 class="text-info fw-bold mb-0">€{{ "%.0f"|format(totale_paypal) }}</h5>
+                        </div>
+                    </div>
+                    <div class="col-4">
+                        <div class="card bg-secondary border-0 text-center p-2 h-100">
+                            <div class="text-white-50 small mb-1" style="font-size: 0.7rem;">
+                                <i class="bi bi-plus-circle me-1"></i>Altro<br><span class="small">(non multe)</span>
+                            </div>
+                            <h5 class="text-warning fw-bold mb-0">€{{ "%.0f"|format(totale_entrate_manuali) }}</h5>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Barra percentuali -->
+                {% set totale_entrate = totale_pagate + totale_entrate_manuali %}
+                {% if totale_entrate > 0 %}
+                <div class="mt-4">
+                    <div class="progress" style="height: 25px;">
+                        {% set perc_contanti = (totale_contanti / totale_entrate * 100) %}
+                        {% set perc_paypal = (totale_paypal / totale_entrate * 100) %}
+                        {% set perc_altro = (totale_entrate_manuali / totale_entrate * 100) %}
+
+                        <div class="progress-bar bg-success" role="progressbar" style="width: {{ perc_contanti }}%"
+                            title="Contanti: {{ '%.0f'|format(perc_contanti) }}%">
+                            {{ '%.0f'|format(perc_contanti) }}%
+                        </div>
+                        <div class="progress-bar bg-info" role="progressbar" style="width: {{ perc_paypal }}%"
+                            title="PayPal: {{ '%.0f'|format(perc_paypal) }}%">
+                            {{ '%.0f'|format(perc_paypal) }}%
+                        </div>
+                        <div class="progress-bar bg-warning text-dark" role="progressbar"
+                            style="width: {{ perc_altro }}%" title="Altro: {{ '%.0f'|format(perc_altro) }}%">
+                            {{ '%.0f'|format(perc_altro) }}%
+                        </div>
+                    </div>
+                    <div class="d-flex justify-content-between small text-white-50 mt-1">
+                        <span><i class="bi bi-circle-fill text-success" style="font-size: 0.6rem;"></i> Contanti</span>
+                        <span><i class="bi bi-circle-fill text-info" style="font-size: 0.6rem;"></i> PayPal</span>
+                        <span><i class="bi bi-circle-fill text-warning" style="font-size: 0.6rem;"></i> Altro</span>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+
+
+{% endblock %}
+
+{% block extra_css %}
+
+{% endblock %}

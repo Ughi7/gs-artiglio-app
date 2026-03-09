@@ -1,0 +1,360 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<!-- BADGE & ACHIEVEMENTS -->
+<div class="card bg-dark border-warning mb-4 shadow">
+    <div class="card-header bg-black border-warning d-flex align-items-center">
+        <h6 class="mb-0 text-warning"><i class="bi bi-trophy me-2"></i>BADGE & TRAGUARDI</h6>
+    </div>
+    <div class="card-body">
+        <div class="d-flex flex-wrap gap-2">
+            {% for ach in achievements_list %}
+            {% if ach.color == 'bg-danger' %}{% set badge_class = 'badge-fluo-red' %}
+            {% elif ach.color == 'bg-success' %}{% set badge_class = 'badge-fluo-green' %}
+            {% elif ach.color == 'bg-primary' %}{% set badge_class = 'badge-fluo-blue' %}
+            {% elif ach.color == 'bg-warning' %}{% set badge_class = 'badge-fluo-yellow' %}
+            {% elif ach.color == 'bg-purple' %}{% set badge_class = 'badge-fluo-purple' %}
+            {% else %}{% set badge_class = 'border-secondary text-secondary' %}{% endif %}
+            {% if ach.is_monthly %}
+            {% if ach.month == 1 %}{% set month_abbr = 'gen' %}
+            {% elif ach.month == 2 %}{% set month_abbr = 'feb' %}
+            {% elif ach.month == 3 %}{% set month_abbr = 'mar' %}
+            {% elif ach.month == 4 %}{% set month_abbr = 'apr' %}
+            {% elif ach.month == 5 %}{% set month_abbr = 'mag' %}
+            {% elif ach.month == 6 %}{% set month_abbr = 'giu' %}
+            {% elif ach.month == 7 %}{% set month_abbr = 'lug' %}
+            {% elif ach.month == 8 %}{% set month_abbr = 'ago' %}
+            {% elif ach.month == 9 %}{% set month_abbr = 'set' %}
+            {% elif ach.month == 10 %}{% set month_abbr = 'ott' %}
+            {% elif ach.month == 11 %}{% set month_abbr = 'nov' %}
+            {% elif ach.month == 12 %}{% set month_abbr = 'dic' %}
+            {% endif %}
+            {% endif %}
+            <span class="badge bg-transparent {{ badge_class }} rounded-pill d-flex align-items-center"
+                style="font-size: 0.7rem; padding: 0.1rem 0.4rem; cursor:help; border-width: 2px; border-style: solid; transition: transform 0.2s ease;"
+                title="{{ ach.desc }}{% if ach.is_monthly %} ({{ ach.month }}/{{ ach.year }}){% endif %}"
+                onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
+                <span
+                    style="font-size:0.8rem; margin-right:0.2rem; {% if ach.color != 'bg-danger' %}filter: drop-shadow(0 0 3px currentColor);{% endif %}">{{
+                    ach.icon }}</span>
+                <span style="font-weight: 600;">{{ ach.name }}{% if ach.is_monthly %} <small style="opacity:0.85;">({{
+                        month_abbr }})</small>{% endif %}</span>
+            </span>
+            {% endfor %}
+
+            <!-- BADGE STREAK SETTIMANALE -->
+            {% if streak_completate.settimanali > 0 %}
+            <span
+                class="badge bg-transparent badge-fluo-green rounded-pill px-2 py-1 d-flex align-items-center badge-achievement"
+                style="font-size:0.875rem; cursor:pointer; border-width: 2px; border-style: solid; transition: all 0.2s ease;"
+                title="Hai completato {{ streak_completate.settimanali }} settimane consecutive senza multe (2026)"
+                onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
+                <span
+                    style="font-size:1.2rem; margin-right:0.3rem; filter: drop-shadow(0 0 4px currentColor);">🔥</span>
+                <span style="font-weight: 600;">Settimana Pulita <span
+                        style="opacity:0.85; font-size:0.85rem; margin-left:0.2rem;">x{{ streak_completate.settimanali
+                        }}</span></span>
+            </span>
+            {% endif %}
+
+            <!-- BADGE STREAK MENSILE -->
+            {% if streak_completate.mensili > 0 %}
+            <span
+                class="badge bg-transparent badge-fluo-blue rounded-pill px-2 py-1 d-flex align-items-center badge-achievement"
+                style="font-size:0.875rem; cursor:pointer; border-width: 2px; border-style: solid; transition: all 0.2s ease;"
+                title="Hai completato {{ streak_completate.mensili }} mesi consecutivi senza multe (2026)"
+                onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
+                <span
+                    style="font-size:1.2rem; margin-right:0.3rem; filter: drop-shadow(0 0 4px currentColor);">💎</span>
+                <span style="font-weight: 600;">Mese Perfetto <span
+                        style="opacity:0.85; font-size:0.85rem; margin-left:0.2rem;">x{{ streak_completate.mensili
+                        }}</span></span>
+            </span>
+            {% endif %}
+        </div>
+    </div>
+</div>
+<div class="text-center mb-4">
+    <div class="avatar mx-auto mb-3 bg-artiglio text-dark fw-bold d-flex align-items-center justify-content-center rounded-circle shadow-lg"
+        style="width: 100px; height: 100px; font-size: 2.5rem; border: 4px solid #fff;">
+        {{ user.numero_maglia if user.numero_maglia else '?' }}
+    </div>
+    <h2 class="fw-bold text-white">{{ user.nome_completo }}</h2>
+    <p class="text-artiglio fst-italic fs-5">"{{ user.soprannome if user.soprannome else 'Rookie' }}"</p>
+    <span class="badge bg-secondary">{{ user.ruolo_volley }}</span>
+</div>
+
+<!-- BIO -->
+<div class="card bg-dark border-secondary mb-4">
+    <div class="card-header border-secondary bg-black d-flex justify-content-between align-items-center">
+        <h6 class="mb-0 text-white"><i class="bi bi-person-lines-fill me-2"></i>BIO</h6>
+        {% if not viewing_other %}
+        <button class="btn btn-sm btn-outline-warning" data-bs-toggle="modal" data-bs-target="#editBioModal">
+            <i class="bi bi-pencil"></i>
+        </button>
+        {% endif %}
+    </div>
+    <div class="card-body">
+        {% if user.bio %}
+        <p class="text-white mb-0">{{ user.bio }}</p>
+        {% else %}
+        <p class="text-muted fst-italic mb-0">Nessuna bio inserita.</p>
+        {% endif %}
+    </div>
+</div>
+
+<!-- STATISTICHE GIOCATORE (solo per non-dirigenti e non-allenatori) -->
+{% if user.ruolo_volley not in ['Allenatore', 'Dirigente'] %}
+<div class="row g-2 mb-4">
+    <div class="col-6">
+        <div class="card bg-dark border-secondary text-center py-3">
+            <h3 class="fw-bold text-warning mb-0">{{ mvp_count }}</h3>
+            <small class="text-muted text-uppercase">MVP Vinti</small>
+        </div>
+    </div>
+    <div class="col-6">
+        <div class="card bg-dark border-secondary text-center py-3">
+            <h3 class="fw-bold text-danger mb-0">{{ total_multe_count }}</h3>
+            <small class="text-muted text-uppercase">Multe Totali</small>
+        </div>
+    </div>
+    <div class="col-4">
+        <div class="card bg-dark border-secondary text-center py-2">
+            <h4 class="fw-bold text-white mb-0">{{ total_points }}</h4>
+            <small class="text-muted text-uppercase" style="font-size: 0.7rem;">Punti</small>
+        </div>
+    </div>
+    <div class="col-4">
+        <div class="card bg-dark border-secondary text-center py-2">
+            <h4 class="fw-bold text-white mb-0">{{ total_aces }}</h4>
+            <small class="text-muted text-uppercase" style="font-size: 0.7rem;">Ace</small>
+        </div>
+    </div>
+    <div class="col-4">
+        <div class="card bg-dark border-secondary text-center py-2">
+            <h4 class="fw-bold text-white mb-0">{{ total_blocks }}</h4>
+            <small class="text-muted text-uppercase" style="font-size: 0.7rem;">Muri</small>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- DENUNCE -->
+<div class="row g-2 mb-4">
+    <div class="col-6">
+        <div class="card bg-dark border-info text-center py-3">
+            <h3 class="fw-bold text-info mb-0">{{ denunce_fatte }}</h3>
+            <small class="text-muted text-uppercase">Denunce Fatte</small>
+        </div>
+    </div>
+    <div class="col-6">
+        <div class="card bg-dark border-danger text-center py-3">
+            <h3 class="fw-bold text-danger mb-0">{{ denunce_prese }}</h3>
+            <small class="text-muted text-uppercase">Denunce Prese</small>
+        </div>
+    </div>
+</div>
+
+<!-- STREAK - Solo per giocatori (non allenatori/dirigenti) -->
+{% if user.ruolo_volley not in ['Allenatore', 'Dirigente'] %}
+<div class="card bg-dark border-success mb-4 shadow">
+    <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h6 class="text-success fw-bold mb-0">
+                    🔥 STREAK
+                    {% if user.current_streak >= 7 %}
+                    <span class="badge bg-warning text-dark ms-2">Settimana Pulita!</span>
+                    {% endif %}
+                    {% if user.current_streak >= 30 %}
+                    <span class="badge bg-info ms-1">Mese Perfetto!</span>
+                    {% endif %}
+                </h6>
+                <small class="text-muted">Giorni consecutivi senza multe</small>
+            </div>
+            <div class="text-end">
+                <div class="display-4 fw-bold text-success">{{ user.current_streak or 0 }}</div>
+                <small class="text-muted">Record: {{ user.best_streak or 0 }}</small>
+            </div>
+        </div>
+        {% if user.current_streak and user.current_streak > 0 %}
+
+        {% if user.current_streak < 7 %} {# Obiettivo settimanale #} {% set progress=((user.current_streak * 100) /
+            7)|int %} {% set bar_color="bg-success" %} {% elif user.current_streak < 30 %} {# Obiettivo mensile (dopo la
+            settimana) #} {% set progress=((user.current_streak * 100) / 30)|int %} {% set bar_color="bg-info" %} {%
+            else %} {# Mese completato #} {% set progress=100 %} {% set bar_color="bg-warning" %} {% endif %} <div
+            class="progress mt-3" style="height: 8px;">
+            <div class="progress-bar {{ bar_color }}" role="progressbar" style="width: {{ progress }}%"
+                aria-valuenow="{{ progress }}" aria-valuemin="0" aria-valuemax="100">
+            </div>
+    </div>
+
+    <div class="mt-2">
+        <small class="text-muted">
+            {% if user.current_streak < 7 %} Mancano <b>{{ 7 - user.current_streak }}</b> giorni alla settimana pulita
+                {% elif user.current_streak < 30 %} Mancano <b>{{ 30 - user.current_streak }}</b> giorni al mese
+                    perfetto
+                    {% else %}
+                    🏆 Sei un campione di disciplina!
+                    {% endif %}
+        </small>
+    </div>
+    {% endif %}
+</div>
+</div>
+{% endif %}
+
+<!-- High Score Game -->
+<div class="card bg-dark border-warning mb-4 shadow">
+    <div class="card-body d-flex justify-content-between align-items-center">
+        <div>
+            <h6 class="text-warning fw-bold mb-0">🏆 FLOPPY RECORD</h6>
+            <small class="text-muted">Il tuo miglior punteggio</small>
+        </div>
+        <div class="display-4 fw-bold text-white">{{ user.flappy_high_score }}</div>
+    </div>
+</div>
+
+<!-- CERTIFICATO MEDICO -->
+<div class="card bg-dark border-info mb-4 shadow">
+    <div class="card-header bg-black border-info d-flex align-items-center justify-content-between">
+        <h6 class="mb-0 text-info"><i class="bi bi-heart-pulse me-2"></i>VISITA MEDICA</h6>
+        {% if user.medical_expiry %}
+        {% set days_until_expiry = (user.medical_expiry - now().date()).days %}
+        {% if days_until_expiry < 0 %} <span class="badge bg-danger">SCADUTO</span>
+            {% elif days_until_expiry <= 7 %} <span class="badge bg-danger">Scade tra {{ days_until_expiry }}
+                giorni</span>
+                {% elif days_until_expiry <= 30 %} <span class="badge bg-warning text-dark">In scadenza</span>
+                    {% else %}
+                    <span class="badge bg-success">Valido</span>
+                    {% endif %}
+                    {% else %}
+                    <span class="badge bg-secondary">Non caricato</span>
+                    {% endif %}
+    </div>
+    <div class="card-body">
+        {% if user.medical_expiry %}
+        <div class="mb-3">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="text-muted small">Scadenza:</span>
+                <span class="text-white fw-bold">{{ user.medical_expiry.strftime('%d/%m/%Y') }}</span>
+            </div>
+            {% if user.medical_file %}
+            <a href="{{ url_for('static', filename='certificati/' ~ user.medical_file) }}" target="_blank"
+                class="btn btn-outline-info btn-sm w-100 mb-2">
+                <i class="bi bi-file-earmark-pdf me-2"></i>Vedi Certificato
+            </a>
+            {% endif %}
+        </div>
+        {% else %}
+        <p class="text-muted small fst-italic mb-3">Nessun certificato caricato.</p>
+        {% endif %}
+
+        {% if not viewing_other %}
+        <!-- Form Upload/Modifica (Solo per il proprietario del profilo) -->
+        <button class="btn btn-info btn-sm w-100" data-bs-toggle="collapse" data-bs-target="#formCertificato">
+            <i class="bi bi-upload me-2"></i>{{ 'Aggiorna' if user.medical_file else 'Carica' }} Certificato
+        </button>
+
+        <div class="collapse mt-3" id="formCertificato">
+            <form action="{{ url_for('main.upload_certificato') }}" method="POST" enctype="multipart/form-data">
+                <div class="mb-2">
+                    <label class="form-label text-muted small">File Certificato</label>
+                    <input type="file" name="certificato_file"
+                        class="form-control form-control-sm bg-black text-white border-secondary"
+                        accept=".pdf,.jpg,.jpeg,.png">
+                    <small class="text-muted">PDF, JPG, JPEG o PNG</small>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label text-muted small">Data di Scadenza</label>
+                    <input type="date" name="data_scadenza"
+                        class="form-control form-control-sm bg-black text-white border-secondary"
+                        value="{{ user.medical_expiry.strftime('%Y-%m-%d') if user.medical_expiry else '' }}" required>
+                </div>
+                <button type="submit" class="btn btn-success btn-sm w-100 fw-bold">
+                    <i class="bi bi-check-lg me-2"></i>SALVA
+                </button>
+            </form>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- INCARICHI -->
+<div class="card bg-dark border-secondary mb-3">
+    <div class="card-header border-secondary bg-black">
+        <h6 class="mb-0 text-white"><i class="bi bi-award me-2"></i>INCARICHI</h6>
+    </div>
+    <div class="card-body">
+        <div class="d-flex flex-wrap gap-2">
+            {% if user.is_presidente %}<span class="badge bg-dark text-warning border border-warning rounded-pill">🦅
+                PRESIDENTE</span>{% endif %}
+            {% if user.is_admin %}<span class="badge bg-danger rounded-pill">💻 ADMIN</span>{% endif %}
+            {% if user.is_capitano %}<span class="badge bg-warning text-dark rounded-pill">©️ CAPITANO</span>{% endif %}
+            {% if user.is_notaio %}<span class="badge rounded-pill text-white" style="background-color: #6f42c1;">⚖️
+                NOTAIO</span>{% endif %}
+            {% if user.is_pizza %}<span class="badge rounded-pill text-white" style="background-color: #fd7e14;">🍕
+                Resp. PIZZA</span>{% endif %}
+            {% if user.is_birra %}<span class="badge rounded-pill text-white" style="background-color: #d63384;">🍺
+                MASTRO BIRRAIO</span>{% endif %}
+            {% if user.is_preparatore %}<span class="badge bg-white text-dark rounded-pill">💪 PREPARATORE</span>{%
+            endif %}
+            {% if user.is_smm %}<span class="badge bg-primary rounded-pill">📱 SMM</span>{% endif %}
+            {% if user.is_convenzioni %}<span class="badge bg-info text-dark rounded-pill">🤝 Resp. CONVENZIONI</span>{%
+            endif %}
+            {% if user.is_abbigliamento %}<span class="badge bg-secondary rounded-pill">👕 Resp. ABBIGLIAMENTO</span>{%
+            endif %}
+            {% if user.is_sponsor %}<span class="badge bg-success rounded-pill">🧈 SPONSOR</span>{% endif %}
+            {% if user.is_pensionato %}<span class="badge bg-secondary rounded-pill">👴 PENSIONATO</span>{% endif %}
+            {% if user.is_gemellaggi %}<span class="badge bg-info text-dark rounded-pill">😎 Resp. GEMELLAGGI</span>{%
+            endif %}
+            {% if user.is_coach %}<span class="badge bg-danger rounded-pill">📋 COACH</span>{% endif %}
+            {% if user.is_catering %}<span class="badge bg-warning text-dark rounded-pill">🥪 Resp. CATERING</span>{%
+            endif %}
+            {% if user.is_scout %}<span class="badge bg-info text-dark rounded-pill">📊 SCOUT</span>{% endif %}
+            {% if user.is_dirigente %}<span class="badge bg-secondary rounded-pill">🎩 DIRIGENTE</span>{% endif %}
+
+            {% set has_incarichi = user.is_presidente or user.is_admin or user.is_capitano or user.is_notaio or
+            user.is_pizza or user.is_birra or user.is_preparatore or user.is_smm or user.is_convenzioni or
+            user.is_abbigliamento or user.is_sponsor or user.is_pensionato or user.is_gemellaggi or user.is_coach or
+            user.is_catering or user.is_scout or user.is_dirigente %}
+            {% if not has_incarichi %}
+            <span class="text-muted small fst-italic">Nessun incarico speciale.</span>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+{% if not viewing_other %}
+<div class="text-center mt-5">
+    <a href="{{ url_for('auth.logout') }}" class="btn btn-outline-danger w-100">
+        <i class="bi bi-box-arrow-right"></i> LOGOUT
+    </a>
+</div>
+{% endif %}
+
+<!-- Modal Modifica Bio -->
+<div class="modal fade" id="editBioModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content bg-dark border-secondary text-white">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title text-artiglio">Modifica Bio</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form action="{{ url_for('main.salva_bio') }}" method="POST">
+                    <div class="mb-3">
+                        <label class="form-label text-muted small">La tua bio</label>
+                        <textarea name="bio" class="form-control bg-black text-white border-secondary" rows="4"
+                            maxlength="500" placeholder="Scrivi qualcosa su di te...">{{ user.bio or '' }}</textarea>
+                        <small class="text-muted">Max 500 caratteri</small>
+                    </div>
+                    <button type="submit" class="btn btn-warning w-100 fw-bold">
+                        <i class="bi bi-check-lg me-2"></i>SALVA
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

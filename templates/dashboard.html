@@ -1,0 +1,153 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+<div class="container-fluid py-4">
+    <div class="text-center mb-4">
+        <h1 class="display-4 text-artiglio mb-2">📊 DASHBOARD STATISTICHE</h1>
+        <p class="text-muted">Analisi dati multe e partite</p>
+    </div>
+
+    <!-- SEZIONE MULTE -->
+    <div class="mb-5">
+        <h2 class="text-warning mb-4"><i class="bi bi-currency-euro me-2"></i>Statistiche Multe</h2>
+
+        <div class="row g-4 mb-4">
+            <!-- Trend Multe Mensili -->
+            <div class="col-lg-8">
+                <div class="card bg-dark border-secondary shadow-sm h-100">
+                    <div class="card-header bg-transparent border-secondary">
+                        <h5 class="text-artiglio mb-0"><i class="bi bi-graph-up me-2"></i>Trend Multe Mensili</h5>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="multeMensiliChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Distribuzione per Importo -->
+            <div class="col-lg-4">
+                <div class="card bg-dark border-secondary shadow-sm h-100">
+                    <div class="card-header bg-transparent border-secondary">
+                        <h5 class="text-artiglio mb-0"><i class="bi bi-pie-chart me-2"></i>Distribuzione per Importo
+                        </h5>
+                    </div>
+                    <div class="card-body d-flex align-items-center justify-content-center">
+                        <canvas id="multeDistribuzioneChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row g-4">
+            <!-- Multe per Giocatore -->
+            <div class="col-lg-8">
+                <div class="card bg-dark border-secondary shadow-sm h-100">
+                    <div class="card-header bg-transparent border-secondary">
+                        <h5 class="text-artiglio mb-0"><i class="bi bi-bar-chart me-2"></i>Multe per Giocatore</h5>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="multeGiocatoreChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Top 5 Denunciatori -->
+            <div class="col-lg-4">
+                <div class="card bg-dark border-secondary shadow-sm h-100">
+                    <div class="card-header bg-transparent border-secondary">
+                        <h5 class="text-artiglio mb-0"><i class="bi bi-people me-2"></i>Top 5 Denunciatori</h5>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="denunciatoriChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SEZIONE PARTITE -->
+    <div class="mb-5">
+        <h2 class="text-info mb-4"><i class="bi bi-trophy me-2"></i>Statistiche Partite</h2>
+
+        <div class="row g-4 mb-4">
+            <!-- Andamento Vittorie/Sconfitte -->
+            <div class="col-lg-8">
+                <div class="card bg-dark border-secondary shadow-sm h-100">
+                    <div class="card-header bg-transparent border-secondary">
+                        <h5 class="text-artiglio mb-0"><i class="bi bi-activity me-2"></i>Andamento Vittorie/Sconfitte
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="vittorieTempoChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- % Vittorie/Sconfitte Totali -->
+            <div class="col-lg-4">
+                <div class="card bg-dark border-secondary shadow-sm h-100">
+                    <div class="card-header bg-transparent border-secondary">
+                        <h5 class="text-artiglio mb-0"><i class="bi bi-pie-chart-fill me-2"></i>Vittorie/Sconfitte
+                            Totali</h5>
+                    </div>
+                    <div class="card-body d-flex align-items-center justify-content-center">
+                        <canvas id="vittorieTotaliChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row g-4">
+            <!-- Set Vinti/Persi per Mese -->
+            <div class="col-lg-12">
+                <div class="card bg-dark border-secondary shadow-sm">
+                    <div class="card-header bg-transparent border-secondary">
+                        <h5 class="text-artiglio mb-0"><i class="bi bi-bar-chart-line me-2"></i>Set Vinti/Persi per Mese
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="setMensiliChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+// Passo i dati jinja in un payload che il Router SPA può interpretare o eseguire dopo.
+const dashboardData = {
+mesiMulte: {{ mesi_multe | tojson }},
+multeCountPerMese: {{ multe_count_per_mese | tojson }},
+multaRangesLabels: {{ multa_ranges.keys() | list | tojson }},
+multaRangesValues: {{ multa_ranges.values() | list | tojson }},
+multePerGiocatore: {
+labels: [{% for player in multe_per_giocatore %}'{{ player[0] or player[1] | replace("'", "") }}'{% if not loop.last %},
+{% endif %}{% endfor %}],
+data: [{% for player in multe_per_giocatore %}{{ player[2] }}{% if not loop.last %}, {% endif %} {% endfor %}]
+},
+denunciatori: {
+labels: [{% for d in denunciatori %}'{{ d[0] or d[1] | replace("'", "") }}'{% if not loop.last %}, {% endif %}{% endfor
+%}],
+data: [{% for d in denunciatori %}{{ d[2] }}{% if not loop.last %}, {% endif %} {% endfor %}]
+},
+datePartite: {{ date_partite | tojson }},
+vittorieTempo: {{ vittorie_tempo | tojson }},
+sconfitteTempo: {{ sconfitte_tempo | tojson }},
+vittorieTotali: {{ vittorie_totali }},
+sconfitteTotali: {{ sconfitte_totali }},
+mesiPartite: {{ mesi_partite | default([]) | tojson }},
+setVintiPerMese: {{ set_vinti_per_mese | default([]) | tojson }},
+setPersiPerMese: {{ set_persi_per_mese | default([]) | tojson }}
+};
+
+if (typeof window.initDashboard === 'function') {
+// Applica l'inizializzazione alla view appena montata.
+window.initDashboard(dashboardData);
+}
+</script>
+
+{% endblock %}

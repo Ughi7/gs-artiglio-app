@@ -1,0 +1,21 @@
+venv/
+__pycache__/
+*.pyc
+instance/
+.DS_Store
+.vscode/
+.idea/
+*.db
+
+# File di Log
+*.log
+
+# Configurazioni sensibili
+vapid_json_config.json
+.env
+
+# Cartelle di upload utenti (se create in locale per test)
+static/certificati/
+static/videos/
+static/files/
+static/feedback/
