@@ -497,7 +497,36 @@ class UserSeenRelease(db.Model):
     )
 
 
-# 15. FEEDBACK UTENTI (Bug + Proposte)
+# 15. REPORT ATTIVITA MULTE/DENUNCE PER ADMIN E NOTAI
+class AdminFineReportEvent(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    actor_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    action = db.Column(db.String(50), nullable=False)
+    fine_id = db.Column(db.Integer, nullable=True)  # No FK: alcune azioni cancellano la multa
+    target_user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    summary = db.Column(db.String(500), nullable=False)
+    details_json = db.Column(db.Text, default='{}')
+    created_at = db.Column(db.DateTime, default=datetime.now)
+
+    actor = db.relationship('User', foreign_keys=[actor_id], backref='admin_fine_report_events_created')
+    target_user = db.relationship('User', foreign_keys=[target_user_id], backref='admin_fine_report_events_received')
+
+
+class UserSeenAdminFineReportEvent(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    event_id = db.Column(db.Integer, db.ForeignKey('admin_fine_report_event.id'), nullable=False)
+    seen_at = db.Column(db.DateTime, default=datetime.now)
+
+    user = db.relationship('User', backref='seen_admin_fine_report_events')
+    event = db.relationship('AdminFineReportEvent', backref='seen_by')
+
+    __table_args__ = (
+        db.UniqueConstraint('user_id', 'event_id', name='unique_user_admin_fine_report_event'),
+    )
+
+
+# 16. FEEDBACK UTENTI (Bug + Proposte)
 class UserFeedback(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
@@ -510,3 +539,31 @@ class UserFeedback(db.Model):
     admin_response = db.Column(db.Text, nullable=True)
     
     user = db.relationship('User', backref='feedbacks')
+
+
+# 17. STORICO VOTAZIONI
+class VoteHistory(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    fine_reason = db.Column(db.String(100), nullable=False)
+    multato_name = db.Column(db.String(50), nullable=False)
+    denunciante_name = db.Column(db.String(50), nullable=True)
+    outcome = db.Column(db.String(50), nullable=False)
+    approve_count = db.Column(db.Integer, nullable=False, default=0)
+    reject_count = db.Column(db.Integer, nullable=False, default=0)
+    total_voters = db.Column(db.Integer, nullable=False, default=0)
+    quorum = db.Column(db.Integer, nullable=False, default=0)
+    non_voters = db.Column(db.Text, nullable=False, default='[]')
+    closed_at = db.Column(db.DateTime, default=datetime.now)
+
+class UserSeenVoteHistory(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    vote_history_id = db.Column(db.Integer, db.ForeignKey('vote_history.id'), nullable=False)
+    seen_at = db.Column(db.DateTime, default=datetime.now)
+
+    user = db.relationship('User', backref='seen_vote_histories')
+    vote_history = db.relationship('VoteHistory', backref='seen_by')
+
+    __table_args__ = (
+        db.UniqueConstraint('user_id', 'vote_history_id', name='unique_user_vote_history'),
+    )

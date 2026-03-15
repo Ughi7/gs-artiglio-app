@@ -30,7 +30,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;700&family=Roboto:wght@400;700&display=swap"
         rel="stylesheet">
 
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}?v=1772534340">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}?v=1773648600">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/components.css') }}?v=1772534340">
     {% block extra_css %}{% endblock %}
 
@@ -289,7 +289,7 @@
                     </li>
                     <li>
                         <a class="dropdown-item text-white d-flex align-items-center py-2"
-                            href="{{ url_for('main.admin_assegna_badge_mensili') }}">
+                            href="{{ url_for('dashboard.admin_assegna_badge_mensili') }}">
                             <i class="bi bi-trophy text-warning me-3 fs-5"></i> Assegna Badge Mensili
                         </a>
                     </li>
@@ -325,7 +325,7 @@
 
                     <li>
                         <a class="dropdown-item text-white d-flex align-items-center py-2"
-                            href="{{ url_for('main.profilo') }}">
+                            href="{{ url_for('profile.profilo') }}">
                             <i class="bi bi-person-circle text-info me-3 fs-5"></i> Profilo
                         </a>
                     </li>
@@ -351,7 +351,7 @@
         {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
         {% for category, message in messages %}
-        <div class="alert alert-{{ 'danger' if category=='error' else 'success' }} alert-dismissible fade show py-2 small shadow"
+        <div class="alert alert-{{ 'danger' if category in ['error', 'danger'] else ('warning' if category == 'warning' else ('info' if category == 'info' else 'success')) }} alert-dismissible fade show py-2 small shadow"
             role="alert" style="animation: shake 0.5s ease;">
             {{ message }}
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
@@ -404,7 +404,7 @@
                     </div>
 
                     <!-- SEZIONE FILTRI BACHECA -->
-                    <form action="{{ url_for('main.salva_filtro_notifiche') }}" method="POST">
+                    <form action="{{ url_for('dashboard.salva_filtro_notifiche') }}" method="POST">
                         <h6 class="text-white mb-3">📰 Filtri Bacheca</h6>
                         <p class="text-muted small mb-3">Seleziona quali notifiche vuoi vedere nella bacheca Home.</p>
 
@@ -474,6 +474,93 @@
     </div>
     {% endif %}
 
+    <!-- Modal Report Multe/Admin -->
+    {% if unseen_vote_histories %}
+    <div class="modal fade" id="unseenVoteHistoriesModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
+        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+            <div class="modal-content bg-dark text-white border-warning">
+                <div class="modal-header border-secondary">
+                    <h5 class="modal-title text-artiglio"><i class="bi bi-clock-history me-2"></i>Votazioni Concluse</h5>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-3">Le seguenti votazioni si sono concluse:</p>
+                    <div class="list-group bg-dark">
+                    {% for sv in unseen_vote_histories %}
+                        <div class="list-group-item bg-dark text-white border-secondary mb-2 rounded">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <strong>{{ sv.multato_name }}</strong>
+                            </div>
+                            <p class="mb-1 small">Infrazione: <em>{{ sv.fine_reason }}</em></p>
+                            
+                            <div class="d-flex align-items-center mb-2">
+                                Esito: 
+                                {% if sv.outcome == 'approved' %}
+                                    <span class="badge bg-success ms-2">Approvata</span>
+                                {% elif sv.outcome == 'rejected_quorum' %}
+                                    <span class="badge bg-warning text-dark ms-2">Respinta (Quorum)</span>
+                                {% else %}
+                                    <span class="badge bg-danger ms-2">Respinta (Voti)</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    {% endfor %}
+                    </div>
+                </div>
+                <div class="modal-footer border-secondary">
+                    <button type="button" class="btn btn-warning text-dark fw-bold w-100" onclick="dismissVoteHistories()">
+                        <i class="bi bi-check-lg me-1"></i>Ho capito!
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if unread_admin_fine_report_events %}
+    <div class="modal fade" id="adminFineReportModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content bg-dark text-white border-warning">
+                <div class="modal-header border-warning bg-warning bg-opacity-10">
+                    <h5 class="modal-title d-flex align-items-center gap-2">
+                        <span>🧾</span>
+                        <span class="text-artiglio">Report Attivita Multe</span>
+                        <span class="badge bg-warning text-dark">{{ unread_admin_fine_report_count }}</span>
+                    </h5>
+                </div>
+                <div class="modal-body">
+                    <p class="text-muted small mb-3">Azioni recenti registrate su multe e denunce.</p>
+                    <div class="admin-report-list">
+                        {% for report in unread_admin_fine_report_events %}
+                        <div class="admin-report-item">
+                            <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
+                                <div class="d-flex align-items-center gap-2 flex-wrap">
+                                    <span class="fs-5">{{ report.icon }}</span>
+                                    <span class="badge rounded-pill {{ report.badge_class }}">{{ report.label }}</span>
+                                </div>
+                                <small class="text-muted text-nowrap">{{ report.created_at.strftime('%d/%m/%Y %H:%M') }}</small>
+                            </div>
+                            <p class="text-white mb-0">{{ report.summary }}</p>
+                            {% if report.changes %}
+                            <ul class="admin-report-changes">
+                                {% for change in report.changes %}
+                                <li>{{ change }}</li>
+                                {% endfor %}
+                            </ul>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                <div class="modal-footer border-secondary">
+                    <button type="button" class="btn btn-warning w-100" onclick="dismissAdminFineReport()">
+                        <i class="bi bi-check-lg me-1"></i>Ho letto
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
     <!-- Modal Nuovo Aggiornamento (Popup Patchnotes) -->
     {% if unseen_release %}
     <div class="modal fade" id="releasePopupModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
@@ -501,11 +588,76 @@
             </div>
         </div>
     </div>
+    {% endif %}
+
+    {% if unread_admin_fine_report_events or unseen_release or unseen_vote_histories %}
     <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            var releaseModal = new bootstrap.Modal(document.getElementById('releasePopupModal'));
-            releaseModal.show();
-        });
+        function showUnseenVoteHistoriesModal() {
+            var modalEl = document.getElementById('unseenVoteHistoriesModal');
+            if (!modalEl) return;
+            bootstrap.Modal.getOrCreateInstance(modalEl).show();
+        }
+
+        function dismissVoteHistories() {
+            fetch('/api/dismiss-vote-histories', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            }).then(function () {
+                var modalEl = document.getElementById('unseenVoteHistoriesModal');
+                var modal = modalEl ? bootstrap.Modal.getInstance(modalEl) : null;
+                if (modal) {
+                    modal.hide();
+                }
+                if (document.getElementById('adminFineReportModal')) {
+                    showAdminFineReportModal();
+                } else if (document.getElementById('releasePopupModal')) {
+                    showReleasePopupModal();
+                }
+            });
+        }
+
+        function showAdminFineReportModal() {
+            var modalEl = document.getElementById('adminFineReportModal');
+            if (!modalEl) return;
+            bootstrap.Modal.getOrCreateInstance(modalEl).show();
+        }
+
+        function showReleasePopupModal() {
+            var modalEl = document.getElementById('releasePopupModal');
+            if (!modalEl) return;
+            bootstrap.Modal.getOrCreateInstance(modalEl).show();
+        }
+
+        function openHomePriorityModal() {
+            if (document.getElementById('unseenVoteHistoriesModal')) {
+                showUnseenVoteHistoriesModal();
+                return;
+            }
+            if (document.getElementById('adminFineReportModal')) {
+                showAdminFineReportModal();
+                return;
+            }
+            if (document.getElementById('releasePopupModal')) {
+                showReleasePopupModal();
+            }
+        }
+
+        function dismissAdminFineReport() {
+            fetch('/api/dismiss-admin-fine-report', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({})
+            }).then(function () {
+                var modalEl = document.getElementById('adminFineReportModal');
+                var modal = modalEl ? bootstrap.Modal.getInstance(modalEl) : null;
+                if (modal) {
+                    modal.hide();
+                }
+                if (document.getElementById('releasePopupModal')) {
+                    showReleasePopupModal();
+                }
+            });
+        }
 
         function dismissRelease(releaseId) {
             fetch('/api/dismiss-release', {
@@ -513,8 +665,18 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ release_id: releaseId })
             }).then(function () {
-                bootstrap.Modal.getInstance(document.getElementById('releasePopupModal')).hide();
+                var modalEl = document.getElementById('releasePopupModal');
+                var modal = modalEl ? bootstrap.Modal.getInstance(modalEl) : null;
+                if (modal) {
+                    modal.hide();
+                }
             });
+        }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', openHomePriorityModal, { once: true });
+        } else {
+            openHomePriorityModal();
         }
     </script>
     {% endif %}
@@ -522,28 +684,28 @@
     {% if current_user.is_authenticated %}
     <nav class="fixed-bottom bottom-nav d-flex justify-content-around align-items-center">
 
-        <a href="{{ url_for('main.multe') }}" class="nav-icon-link {{ 'active' if request.endpoint == 'multe' }}">
+        <a href="{{ url_for('fines.multe') }}" class="nav-icon-link {{ 'active' if request.endpoint and request.endpoint.startswith('fines.') }}">
             <i class="bi bi-cash-coin"></i>
             <span>Multe</span>
         </a>
 
-        <a href="{{ url_for('main.rosa') }}" class="nav-icon-link {{ 'active' if request.endpoint == 'rosa' }}">
+        <a href="{{ url_for('roster.rosa') }}" class="nav-icon-link {{ 'active' if request.endpoint and request.endpoint.startswith('roster.') }}">
             <i class="bi bi-people-fill"></i>
             <span>Rosa</span>
         </a>
 
-        <a href="{{ url_for('main.home') }}"
-            class="nav-icon-link home-link {{ 'active' if request.endpoint == 'home' }}">
+        <a href="{{ url_for('dashboard.home') }}"
+            class="nav-icon-link home-link {{ 'active' if request.endpoint == 'dashboard.home' }}">
             <i class="bi bi-house-door-fill"></i>
         </a>
 
-        <a href="{{ url_for('main.partite') }}" class="nav-icon-link {{ 'active' if request.endpoint == 'partite' }}">
+        <a href="{{ url_for('matches.partite') }}" class="nav-icon-link {{ 'active' if request.endpoint and request.endpoint.startswith('matches.') }}">
             <i class="bi bi-list-ul"></i>
             <span>Partite</span>
         </a>
 
-        <a href="{{ url_for('main.calendario') }}"
-            class="nav-icon-link {{ 'active' if request.endpoint == 'calendario' }}">
+        <a href="{{ url_for('calendar_pages.calendario') }}"
+            class="nav-icon-link {{ 'active' if request.endpoint and request.endpoint.startswith('calendar_pages.') }}">
             <i class="bi bi-calendar-event"></i>
             <span>Calend.</span>
         </a>
@@ -584,11 +746,11 @@
 
             // --- 1. CONFIGURAZIONE PAGINE ---
             const targetUrls = [
-                "{{ url_for('main.multe') }}",       // Index 0
-                "{{ url_for('main.rosa') }}",        // Index 1
+                "{{ url_for('fines.multe') }}",       // Index 0
+                "{{ url_for('roster.rosa') }}",        // Index 1
                 "/",                            // Index 2 (HOME)
-                "{{ url_for('main.partite') }}",     // Index 3
-                "{{ url_for('main.calendario') }}"   // Index 4
+                "{{ url_for('matches.partite') }}",     // Index 3
+                "{{ url_for('calendar_pages.calendario') }}"   // Index 4
             ];
 
             // --- 2. FUNZIONE PER CAPIRE DOVE SIAMO ---

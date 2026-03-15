@@ -9,14 +9,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (path === '/' || path.includes('/dashboard')) {
             if (typeof window.initDashboard === 'function') window.initDashboard();
+        } else if (path.includes('/stats_partite')) {
+            if (typeof window.initStatsPartite === 'function') window.initStatsPartite(window.__statsPartiteData);
+        } else if (path.includes('/stats_multe')) {
+            if (typeof window.initStatsMulte === 'function') window.initStatsMulte(window.__statsMulteData);
         } else if (path.includes('/rosa')) {
             if (typeof window.initRosa === 'function') window.initRosa();
         } else if (path.includes('/partite')) {
             if (typeof window.initPartite === 'function') window.initPartite();
-            if (path.includes('stats_partite') && typeof window.initStatsPartite === 'function') window.initStatsPartite();
         } else if (path.includes('/multe')) {
             if (typeof window.initMulte === 'function') window.initMulte();
-            if (path.includes('stats_multe') && typeof window.initStatsMulte === 'function') window.initStatsMulte();
         } else if (path.includes('/admin/feedback')) {
             if (typeof window.initAdminFeedback === 'function') window.initAdminFeedback();
         } else if (path.includes('/aggiornamenti')) {
@@ -110,6 +112,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (link.getAttribute('href') && link.getAttribute('href').startsWith('#')) return; // Escludi anchor interni
             if (link.getAttribute('href') && link.getAttribute('href').includes('/admin')) return; // Escludi /admin routes
             if (link.getAttribute('href') && link.getAttribute('href').includes('/auth')) return; // Escludi roba auth
+            if (link.getAttribute('href') && link.getAttribute('href').includes('/logout')) return; // Logout deve rifare render completo
             if (link.getAttribute('href') && window.location.pathname.startsWith('/game')) return; // Evita problemi col game
 
             // Aggiungi un flag per non attaccare doppio listener

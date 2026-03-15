@@ -8,12 +8,13 @@ from app.models import db, User, NotificationPreference, PushSubscription, Notif
 def send_push_notification(user_id, title, body, url='/', notification_type=None):
     """Invia una notifica push a un utente specifico"""
     user = db.session.get(User, user_id)
-    if not user: return
+    if not user:
+        return
     
     # Verifica preferenze notifiche
     prefs = NotificationPreference.query.filter_by(user_id=user_id).first()
     if prefs and not prefs.push_enabled:
-        print(f"[PUSH] Utente {user.username} ha disabilitato le notifiche push")
+        current_app.logger.debug("Push disabilitate per user=%s", user.username)
         return
     
     # Verifica filtri per tipo di notifica
@@ -39,11 +40,12 @@ def send_push_notification(user_id, title, body, url='/', notification_type=None
             should_skip = True
         
         if should_skip:
-            print(f"[PUSH] Utente {user.username} ha filtrato le notifiche di tipo '{tipo}'")
+            current_app.logger.debug("Push filtrata per user=%s tipo=%s", user.username, tipo)
             return
 
     subscriptions = PushSubscription.query.filter_by(user_id=user_id).all()
-    if not subscriptions: return
+    if not subscriptions:
+        return
 
     for sub in subscriptions:
         try:
@@ -65,7 +67,7 @@ def send_push_notification(user_id, title, body, url='/', notification_type=None
                 "data": {"url": url}
             })
             
-            print(f'[PUSH] Invio a user_id={user_id}, endpoint={sub.endpoint[:50]}...')
+            current_app.logger.debug('Invio push a user_id=%s endpoint=%s...', user_id, sub.endpoint[:50])
             
             webpush(
                 subscription_info={
@@ -79,16 +81,20 @@ def send_push_notification(user_id, title, body, url='/', notification_type=None
                 vapid_private_key=current_app.config['VAPID_PRIVATE_KEY'],
                 vapid_claims=vapid_claims
             )
-            print(f'[PUSH] ✓ Notifica inviata con successo a user_id={user_id}')
+            current_app.logger.debug('Push inviata con successo a user_id=%s', user_id)
         except WebPushException as ex:
-            print(f'[PUSH] ✗ Errore invio a user_id={user_id}: {ex}')
+            current_app.logger.warning('Errore WebPush per user_id=%s: %s', user_id, ex)
             # Rimuovi subscription se obsoleta o invalida
             if ex.response and ex.response.status_code in [400, 401, 403, 404, 410]:
-                print(f'[PUSH] Rimuovo sottoscrizione non valida (status {ex.response.status_code}) per user_id={user_id}')
+                current_app.logger.info(
+                    'Rimozione sottoscrizione push invalida status=%s per user_id=%s',
+                    ex.response.status_code,
+                    user_id,
+                )
                 db.session.delete(sub)
                 db.session.commit()
         except Exception as e:
-            print(f"[PUSH] Errore generico invio a {user.username}: {e}")
+            current_app.logger.exception('Errore generico invio push a user=%s: %s', user.username, e)
 
 def send_push_to_all(title, body, url='/', notification_type=None):
     """Invia notifica push a tutti gli utenti che hanno abilitato le notifiche"""
@@ -97,8 +103,12 @@ def send_push_to_all(title, body, url='/', notification_type=None):
         send_push_notification(user.id, title, body, url, notification_type)
 
 
-def crea_notifica(tipo, messaggio, icon='📢', send_push=True, target_user_id=None):
-    """Crea una nuova notifica nella bacheca e opzionalmente invia push"""
+def crea_notifica(tipo, messaggio, icon='📢', send_push=True, target_user_id=None, commit=True):
+    """Crea una nuova notifica nella bacheca e opzionalmente invia push
+    
+    Args:
+        commit: Se False, non committa automaticamente. Utile quando dentro una transazione più grande.
+    """
     notifica = Notification(
         tipo=tipo,
         messaggio=messaggio,
@@ -106,7 +116,8 @@ def crea_notifica(tipo, messaggio, icon='📢', send_push=True, target_user_id=N
         data_creazione=datetime.now()
     )
     db.session.add(notifica)
-    db.session.commit()
+    if commit:
+        db.session.commit()
     
     # Invia push notification se richiesto
     if send_push:
@@ -115,20 +126,18 @@ def crea_notifica(tipo, messaggio, icon='📢', send_push=True, target_user_id=N
             title = f"{icon} GS Artiglio"
             body = messaggio[:200] if len(messaggio) > 200 else messaggio
             
-            print(f'[PUSH] Tentativo invio notifica: {title} - {body[:50]}...')
+            current_app.logger.debug('Tentativo invio notifica push: %s - %s...', title, body[:50])
             
             if target_user_id:
                 # Invia solo all'utente specifico
-                print(f'[PUSH] Invio a utente specifico: {target_user_id}')
+                current_app.logger.debug('Invio notifica a utente specifico=%s', target_user_id)
                 send_push_notification(target_user_id, title, body, '/', tipo)
             else:
                 # Invia a tutti gli utenti sottoscritti
-                print(f'[PUSH] Invio a tutti gli utenti')
+                current_app.logger.debug('Invio notifica broadcast per tipo=%s', tipo)
                 send_push_to_all(title, body, '/', tipo)
         except Exception as e:
-            print(f'[PUSH] Errore invio notifica: {e}')
-            import traceback
-            traceback.print_exc()
+            current_app.logger.exception('Errore invio notifica tipo=%s: %s', tipo, e)
 
 def get_nome_giocatore(user):
     """Restituisce il soprannome se presente, altrimenti il nome completo"""

@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, redirect, url_for, request, flash, session
-from flask_login import login_user, logout_user, login_required, current_user
+from flask_login import login_user, logout_user, current_user
 from app.models import db, User
 from app import bcrypt
 from app.utils.cron_helpers import maybe_update_all_streaks
@@ -36,7 +36,7 @@ def crea_admin():
 @auth_bp.route('/login', methods=['GET', 'POST'])
 def login():
     if current_user.is_authenticated: 
-        return redirect(url_for('main.home'))
+        return redirect(url_for('dashboard.home'))
     
     if request.method == 'POST':
         user = User.query.filter_by(username=request.form.get('username')).first()
@@ -45,7 +45,7 @@ def login():
             login_user(user)
             # Streak batch: solo dopo le 09:00 e max 1/giorno (evita notifiche notturne)
             maybe_update_all_streaks()
-            return redirect(url_for('main.home'))
+            return redirect(url_for('dashboard.home'))
         else: 
             flash('Login fallito.', 'danger')
             

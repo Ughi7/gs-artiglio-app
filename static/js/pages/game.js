@@ -24,6 +24,11 @@ window.initGameEngine = function(isAdminValue) {
             }
         } catch (e) { }
 
+        function getCsrfToken() {
+            const el = document.querySelector('meta[name="csrf-token"]');
+            return el ? el.getAttribute('content') : '';
+        }
+
         function toggleVibration() {
             vibrationEnabled = !vibrationEnabled;
             localStorage.setItem('artiglio_vibration', vibrationEnabled);
@@ -597,6 +602,7 @@ window.initGameEngine = function(isAdminValue) {
 
                 for (let i = 0; i < localStorage.length; i++) {
                     const key = localStorage.key(i);
+                    // Pulisci solo chiavi non di oggi (sia col vecchio formato sia col nuovo formato con userId)
                     if (key && key.startsWith('floppy_missions_') && !key.endsWith(todayStr)) {
                         keysToRemove.push(key);
                     }
@@ -631,7 +637,8 @@ window.initGameEngine = function(isAdminValue) {
             lastMissionsDateStr = dateStr;
 
             let seed = 0;
-            for (let i = 0; i < dateStr.length; i++) seed += dateStr.charCodeAt(i);
+            const seedStr = dateStr + (window.currentUserId || '');
+            for (let i = 0; i < seedStr.length; i++) seed += seedStr.charCodeAt(i);
 
             const pool = [...MISSIONS_POOL];
             dailyMissions = [];
@@ -641,9 +648,10 @@ window.initGameEngine = function(isAdminValue) {
                 pool.splice(idx, 1);
             }
 
-            // Load progress SOLO se la chiave corrisponde alla data di oggi
+            // Load progress SOLO se la chiave corrisponde alla data di oggi e all'utente loggato se disponibile
             try {
-                const savedKey = `floppy_missions_${dateStr}`;
+                const userIdSuffix = window.currentUserId ? `_${window.currentUserId}_` : '_';
+                const savedKey = `floppy_missions${userIdSuffix}${dateStr}`;
                 const saved = localStorage.getItem(savedKey);
                 if (saved) {
                     const savedData = JSON.parse(saved);
@@ -709,7 +717,10 @@ window.initGameEngine = function(isAdminValue) {
                     // Send completion to backend
                     fetch('/api/flappy/complete_mission', {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
+                        headers: { 
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': getCsrfToken()
+                        },
                         body: JSON.stringify({ mission_id: m.id })
                     })
                         .then(r => r.json())
@@ -729,7 +740,8 @@ window.initGameEngine = function(isAdminValue) {
             // Save Progress
             try {
                 const dateStr = new Date().toDateString();
-                const key = `floppy_missions_${dateStr}`;
+                const userIdSuffix = window.currentUserId ? `_${window.currentUserId}_` : '_';
+                const key = `floppy_missions${userIdSuffix}${dateStr}`;
                 // Save sparse data
                 const toSave = dailyMissions.map(m => ({ id: m.id, progress: m.progress, completed: m.completed }));
                 localStorage.setItem(key, JSON.stringify(toSave));
@@ -881,7 +893,12 @@ window.initGameEngine = function(isAdminValue) {
         };
 
         function syncProfile() {
-            fetch('/api/flappy/sync')
+            fetch('/api/flappy/sync', {
+                method: 'GET',
+                headers: {
+                    'X-CSRFToken': getCsrfToken()
+                }
+            })
                 .then(r => r.json())
                 .then(data => {
                     unlockedSkins = data.skins || ["default"];
@@ -1523,7 +1540,10 @@ window.initGameEngine = function(isAdminValue) {
         function buyShopItem(itemId) {
             fetch('/api/flappy/shop/buy', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCsrfToken()
+                },
                 body: JSON.stringify({ item_id: itemId })
             })
                 .then(r => r.json())
@@ -1557,7 +1577,10 @@ window.initGameEngine = function(isAdminValue) {
             selectedSkin = previewingSkin;
             fetch('/api/flappy/sync', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCsrfToken()
+                },
                 body: JSON.stringify({ selected_skin: selectedSkin })
             });
             updateSkinSelector();
@@ -1992,65 +2015,101 @@ window.initGameEngine = function(isAdminValue) {
 
             // fetch('/api/save_score'...) REDUNDANT removed
 
-            // Save progress (stats, skins unlock checks)
-            fetch('/api/flappy/save_progress', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    score: Math.floor(score),
-                    level: currentLevel
-                })
-            })
-                .then(r => r.json())
-                .then(data => {
-                    if (data.new_unlock && data.unlocked_skin_name) {
-                        creaNotificaGioco(`🎉 NUOVA SKIN SBLOCCATA: ${data.unlocked_skin_name}! ${data.unlocked_skin_icon || ''}`);
-                        syncProfile(); // Refresh skins
-                    } else if (data.new_unlock) {
-                        creaNotificaGioco("🎉 NUOVA SKIN SBLOCCATA!");
-                        syncProfile();
-                    }
-                })
-                .catch(e => console.log("Mission sync error:", e));
+            // Snapshot the collected coins to avoid race condition if player restarts game immediately
+            const coinsToSave = coinsCollectedThisGame || 0;
 
             // Update UI immediately
             let finalScoreEl = document.getElementById('final-score');
             let bestScoreEl = document.getElementById('best-score');
-            if (finalScoreEl) finalScoreEl.innerText = Math.floor(score);
+            let finalCoinsEl = document.getElementById('final-coins');
+            const finalScore = Math.floor(score);
+            
+            if (finalScoreEl) finalScoreEl.innerText = finalScore;
+            if (bestScoreEl) bestScoreEl.innerText = Math.max(highScore || 0, finalScore);
+            if (finalCoinsEl) finalCoinsEl.innerText = coinsToSave;
+            
+            if (gameOverScreen) gameOverScreen.classList.remove('hidden');
 
-            fetch('/api/save_score', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ score: Math.floor(score) })
-            })
-                .then(r => r.json())
-                .then(data => {
-                    if (bestScoreEl) bestScoreEl.innerText = data.high_score || Math.floor(score);
-                    if (gameOverScreen) gameOverScreen.classList.remove('hidden');
-                })
-                .catch(err => {
-                    console.error('Error saving score', err);
-                    // bestScore non aggiornabile senza backend -> fallback a 0? meglio lasciare invariato
-                    if (gameOverScreen) gameOverScreen.classList.remove('hidden');
-                });
-            updateMissions('game_over', Math.floor(score));
+            const persistCoinsFallback = () => {
+                if (coinsToSave <= 0) {
+                    return Promise.resolve(null);
+                }
 
-            // Save collected coins
-            if (coinsCollectedThisGame > 0) {
-                fetch('/api/flappy/save_coins', {
+                return fetch('/api/flappy/save_coins', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ coins: coinsCollectedThisGame })
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCsrfToken()
+                    },
+                    body: JSON.stringify({ coins: coinsToSave })
                 })
                     .then(r => r.json())
-                    .then(data => {
-                        if (data.success) {
-                            playerCoins = data.total_coins;
-                            showToast(`🪙 +${coinsCollectedThisGame} monete!`);
+                    .then(coinData => {
+                        if (coinData && coinData.success && coinData.total_coins !== undefined) {
+                            playerCoins = coinData.total_coins;
+                            updateHudCoins();
+                            showToast(`🪙 +${coinsToSave} monete!`);
                         }
+                        return coinData;
                     })
-                    .catch(e => console.log("Coins save error:", e));
-            }
+                    .catch(err => {
+                        console.error('Error fallback saving coins', err);
+                        return null;
+                    });
+            };
+
+            fetch('/api/flappy/save_progress', {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCsrfToken()
+                },
+                body: JSON.stringify({
+                    score: finalScore,
+                    level: currentLevel,
+                    coins: coinsToSave
+                })
+            })
+                .then(async r => {
+                    const data = await r.json();
+                    return { ok: r.ok, data };
+                })
+                .then(data => {
+                    const payload = data.data || {};
+
+                    if (payload.high_score !== undefined) {
+                        highScore = payload.high_score || 0;
+                        if (bestScoreEl) bestScoreEl.innerText = highScore;
+                    }
+
+                    const saveProgressFailed = !data.ok || payload.success === false;
+                    if (saveProgressFailed) {
+                        return persistCoinsFallback();
+                    }
+
+                    if (payload.total_coins !== undefined) {
+                        playerCoins = payload.total_coins;
+                        updateHudCoins();
+                    }
+
+                    if (coinsToSave > 0) {
+                        showToast(`🪙 +${coinsToSave} monete!`);
+                    }
+
+                    if (payload.new_unlock && payload.unlocked_skin_name) {
+                        creaNotificaGioco(`🎉 NUOVA SKIN SBLOCCATA: ${payload.unlocked_skin_name}! ${payload.unlocked_skin_icon || ''}`);
+                        syncProfile();
+                    } else if (payload.new_unlock) {
+                        creaNotificaGioco("🎉 NUOVA SKIN SBLOCCATA!");
+                        syncProfile();
+                    }
+                    return null;
+                })
+                .catch(err => {
+                    console.error('Error saving progress', err);
+                    persistCoinsFallback();
+                });
+            updateMissions('game_over', Math.floor(score));
 
             // Hide HUD
             const hud = document.getElementById('game-hud');
@@ -3089,5 +3148,12 @@ window.initGameEngine = function(isAdminValue) {
     // Chiama al primo avvio per DOM
     if (typeof window._updateGameDomRefs === 'function') {
         window._updateGameDomRefs(isAdminValue);
+    }
+};
+
+window.onload = function() {
+    var canvas = document.getElementById('gameCanvas');
+    if (canvas) {
+        window.currentUserId = canvas.getAttribute('data-user-id');
     }
 };

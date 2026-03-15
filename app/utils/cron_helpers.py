@@ -1,5 +1,6 @@
 from sqlalchemy import func, extract
 from datetime import datetime, timedelta, date
+from flask import current_app
 from app.models import db, CashTransaction, Fine, Event, Achievement, UserAchievement, GlobalSettings, User, Notification
 from app.utils.badge_service import assign_badge
 from app.utils.fine_service import check_and_apply_late_fees
@@ -66,6 +67,8 @@ def check_medical_certificate_expiry(user):
     today_str = today.isoformat()
     limit_key = f'medical_notif_last_run_{user.id}'
     
+    # Il throttle vive in GlobalSettings per evitare invii ripetuti nello stesso giorno
+    # anche se il controllo viene eseguito più volte da bootstrap, cron o richieste utente.
     gs = GlobalSettings.query.filter_by(key=limit_key).first()
     if gs and (gs.value or '').strip() == today_str:
         return
@@ -139,7 +142,7 @@ def check_matchday_notification():
             icon='🏐',
             send_push=True
         )
-        print(f"[MATCHDAY] Notifica inviata per partita vs {match.opponent_name}")
+        current_app.logger.info('Notifica matchday inviata per partita vs %s', match.opponent_name)
 
 def update_all_streaks():
     """Aggiorna lo streak di tutti gli utenti basandosi sulle multe ricevute oggi"""
@@ -202,11 +205,13 @@ def maybe_update_all_streaks(now: datetime | None = None, min_hour: int = 9) -> 
 
         today_str = now.date().isoformat()
         key = 'streaks_last_run_date'
+        # Il guard giornaliero evita che lo streak venga incrementato più volte se il codice
+        # parte sia da scheduler sia da richieste web nello stesso giorno.
         gs = GlobalSettings.query.filter_by(key=key).first()
         if gs and (gs.value or '').strip() == today_str:
             return False  # Skip silenziosamente (già eseguito oggi)
 
-        print(f"[STREAK] Running update_all_streaks() (today={today_str})")
+        current_app.logger.info('Esecuzione update_all_streaks per today=%s', today_str)
         update_all_streaks()
 
         if not gs:
@@ -217,7 +222,7 @@ def maybe_update_all_streaks(now: datetime | None = None, min_hour: int = 9) -> 
         db.session.commit()
         return True
     except Exception as e:
-        print(f"[STREAK] Error in maybe_update_all_streaks: {e}")
+        current_app.logger.exception('Errore in maybe_update_all_streaks: %s', e)
         try:
             db.session.rollback()
         except Exception:

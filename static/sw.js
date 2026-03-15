@@ -1,4 +1,4 @@
-const CACHE_NAME = 'artiglio-cache-v4.2';
+const CACHE_NAME = 'artiglio-cache-v5.0.0';
 const urlsToCache = [
   '/',
   '/login',

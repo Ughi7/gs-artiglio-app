@@ -9,7 +9,7 @@
             data-bs-target="#infoEsportazione" aria-expanded="false" aria-controls="infoEsportazione">
             <i class="bi bi-info-circle"></i>
         </button>
-        <a href="{{ url_for('main.export_calendar_ics') }}" class="btn btn-warning btn-sm fw-bold">
+        <a href="{{ url_for('calendar_pages.export_calendar_ics') }}" class="btn btn-warning btn-sm fw-bold">
             <i class="bi bi-calendar-event"></i> Esporta Calendario (.ics)
         </a>
     </div>
@@ -33,14 +33,14 @@
 </div>
 
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <a href="{{ url_for('main.calendario', year=prev_ym.y, month=prev_ym.m) }}"
+    <a href="{{ url_for('calendar_pages.calendario', year=prev_ym.y, month=prev_ym.m) }}"
         class="btn btn-outline-secondary btn-sm">
         <i class="bi bi-chevron-left"></i>
     </a>
 
     <h2 class="text-artiglio mb-0 text-uppercase">{{ year }} / {{ month }}</h2>
 
-    <a href="{{ url_for('main.calendario', year=next_ym.y, month=next_ym.m) }}"
+    <a href="{{ url_for('calendar_pages.calendario', year=next_ym.y, month=next_ym.m) }}"
         class="btn btn-outline-secondary btn-sm">
         <i class="bi bi-chevron-right"></i>
     </a>
@@ -242,7 +242,7 @@
                             {% endif %}
 
                             {% if match %}
-                            <a href="{{ url_for('main.partite') }}" class="stretched-link"></a>
+                            <a href="{{ url_for('matches.partite') }}" class="stretched-link"></a>
                             {% endif %}
                     </div>
                 </td>
@@ -262,7 +262,7 @@
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <form action="/gestisci_turno" method="POST">
+                <form action="{{ url_for('calendar_pages.gestisci_turno') }}" method="POST">
                     <input type="hidden" name="date" id="modalDateInput">
 
                     <p class="text-center text-muted mb-3">

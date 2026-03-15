@@ -20,7 +20,7 @@
             <p class="mb-0 small text-white-50">Totale da saldare: <span class="fw-bold text-white">€ {{
                     "%.2f"|format(total_unpaid) }}</span></p>
         </div>
-        <a href="{{ url_for('main.multe') }}" class="btn btn-sm btn-danger fw-bold btn-rounded px-3">PAGA ORA</a>
+        <a href="{{ url_for('fines.multe') }}" class="btn btn-sm btn-danger fw-bold btn-rounded px-3">PAGA ORA</a>
     </div>
     <hr class="border-danger opacity-50">
     <ul class="list-group list-group-flush bg-transparent">
@@ -50,7 +50,7 @@
             <h5 class="alert-heading fw-bold mb-1 text-warning"><i class="bi bi-bell-fill"></i> PROMEMORIA TURNO!</h5>
             <p class="mb-0 small text-white-50">Non dimenticare il tuo incarico.</p>
         </div>
-        <a href="{{ url_for('main.calendario') }}"
+        <a href="{{ url_for('calendar_pages.calendario') }}"
             class="btn btn-sm btn-warning fw-bold btn-rounded px-3 text-dark">CALENDARIO</a>
     </div>
     <hr class="border-warning opacity-50">
@@ -216,7 +216,7 @@
                 <div class="display-4 mb-3">🍕🍺</div>
                 <h6 class="text-uppercase small text-muted mb-2">Convivialità</h6>
                 <h5 class="text-white fw-bold">Pizza & Birra</h5>
-                <a href="{{ url_for('main.calendario') }}" class="stretched-link"></a>
+                <a href="{{ url_for('calendar_pages.calendario') }}" class="stretched-link"></a>
             </div>
         </div>
     </div>
@@ -228,7 +228,7 @@
                 <i class="bi bi-cash-coin display-4 text-danger mb-3"></i>
                 <h6 class="text-uppercase small text-muted mb-2">Amministrazione</h6>
                 <h5 class="text-white fw-bold">Multe</h5>
-                <a href="{{ url_for('main.multe') }}" class="stretched-link"></a>
+                <a href="{{ url_for('fines.multe') }}" class="stretched-link"></a>
             </div>
         </div>
     </div>
@@ -240,7 +240,7 @@
                 <i class="bi bi-clipboard-check display-4 text-success mb-3"></i>
                 <h6 class="text-uppercase small text-muted mb-2">Team</h6>
                 <h5 class="text-white fw-bold">Presenze</h5>
-                <a href="{{ url_for('main.presenze') }}" class="stretched-link"></a>
+                <a href="{{ url_for('attendance_pages.presenze') }}" class="stretched-link"></a>
             </div>
         </div>
     </div>
@@ -257,7 +257,7 @@
                 {% if current_user.current_streak and current_user.current_streak >= 7 %}
                 <div class="mt-2 text-warning animate-bounce">🏆</div>
                 {% endif %}
-                <a href="{{ url_for('main.profilo') }}" class="stretched-link"></a>
+                <a href="{{ url_for('profile.profilo') }}" class="stretched-link"></a>
             </div>
         </div>
     </div>
@@ -292,7 +292,7 @@
                 data-bs-target="#notificationSettingsModal" title="Filtra Notifiche">
                 <i class="bi bi-sliders"></i>
             </button>
-            <form action="{{ url_for('main.elimina_tutte_notifiche') }}" method="POST" class="m-0">
+            <form action="{{ url_for('dashboard.elimina_tutte_notifiche') }}" method="POST" class="m-0">
                 <button type="submit" class="btn btn-sm btn-outline-secondary" id="clearNotificationsBtn">
                     <i class="bi bi-eye-slash"></i> Nascondi tutto
                 </button>
@@ -311,7 +311,7 @@
                         {{ notifica.data_creazione.strftime('%d/%m/%Y alle %H:%M') }}
                     </small>
                 </div>
-                <form action="{{ url_for('main.elimina_notifica', notifica_id=notifica.id) }}" method="POST">
+                <form action="{{ url_for('dashboard.elimina_notifica', notifica_id=notifica.id) }}" method="POST">
                     <button type="submit" class="btn btn-sm btn-outline-secondary border-0" title="Nascondi">
                         <i class="bi bi-x-lg"></i>
                     </button>
@@ -521,7 +521,7 @@
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <form action="/salva_statistiche" method="POST">
+                <form action="{{ url_for('matches.salva_statistiche') }}" method="POST">
                     <input type="hidden" name="event_id" value="{{ last_match.id }}">
 
                     <!-- Statistiche di Squadra -->
@@ -613,7 +613,7 @@
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
                     aria-label="Close"></button>
             </div>
-            <form action="{{ url_for('main.vote_mvp', event_id=last_match.id) }}" method="POST">
+            <form action="{{ url_for('matches.vote_mvp', event_id=last_match.id) }}" method="POST">
                 <div class="modal-body">
                     <p class="small text-muted mb-3">Scegli il giocatore che si è distinto maggiormente in partita.</p>
                     <div class="list-group list-group-flush" style="max-height: 400px; overflow-y: auto;">
@@ -651,7 +651,7 @@
             </div>
             <div class="modal-body">
                 <!-- Info Giornata -->
-                <form action="{{ url_for('main.salva_classifica') }}" method="POST" class="mb-4">
+                <form action="{{ url_for('dashboard.salva_classifica') }}" method="POST" class="mb-4">
                     <div class="card bg-black border-secondary mb-3">
                         <div class="card-header">
                             <h6 class="mb-0 text-info">Info Giornata</h6>
@@ -738,7 +738,7 @@
                         <h6 class="mb-0 text-success">Aggiungi Nuova Squadra</h6>
                     </div>
                     <div class="card-body">
-                        <form action="{{ url_for('main.aggiungi_squadra') }}" method="POST">
+                        <form action="{{ url_for('dashboard.aggiungi_squadra') }}" method="POST">
                             <div class="row g-2">
                                 <div class="col-md-5">
                                     <input type="text" name="nome_squadra"
@@ -773,7 +773,7 @@
 
 <!-- Form nascosti per rimuovere squadre -->
 {% for squadra in classifica %}
-<form id="removeSquadra{{ squadra.id }}" action="{{ url_for('main.rimuovi_squadra', squadra_id=squadra.id) }}" method="POST"
+<form id="removeSquadra{{ squadra.id }}" action="{{ url_for('dashboard.rimuovi_squadra', squadra_id=squadra.id) }}" method="POST"
     style="display:none;"></form>
 {% endfor %}
 {% endif %}

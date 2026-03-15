@@ -1,4 +1,7 @@
 window.initStatsPartite = function (data) {
+    data = data || window.__statsPartiteData;
+    if (!data) return;
+
     // Configurazione globale Chart.js
     Chart.defaults.color = '#adb5bd';
     Chart.defaults.font.family = "'Roboto', sans-serif";
@@ -156,6 +159,9 @@ window.initStatsPartite = function (data) {
 };
 
 window.initStatsMulte = function (data) {
+    data = data || window.__statsMulteData;
+    if (!data) return;
+
     // Configurazione globale Chart.js
     Chart.defaults.color = '#adb5bd';
     Chart.defaults.borderColor = '#495057';
@@ -213,10 +219,10 @@ window.initStatsMulte = function (data) {
         const c2 = new Chart(multeGiocatoreCtx, {
             type: 'bar',
             data: {
-                labels: data.giocatoriNomi,
+                labels: (data.giocatoriNomi || []).map((name, index) => name || (data.giocatoriFallbackNomi || [])[index] || 'Sconosciuto'),
                 datasets: [{
                     label: 'Totale Multe (€)',
-                    data: data.giocatoriImpos,
+                    data: data.giocatoriImporti,
                     backgroundColor: '#dc3545',
                     borderColor: '#c82333',
                     borderWidth: 1
@@ -248,7 +254,7 @@ window.initStatsMulte = function (data) {
         const c3 = new Chart(denunciatoriCtx, {
             type: 'bar',
             data: {
-                labels: data.denunciatoriNomi,
+                labels: (data.denunciatoriNomi || []).map((name, index) => name || (data.denunciatoriFallbackNomi || [])[index] || 'Sconosciuto'),
                 datasets: [{
                     label: 'Denunce Fatte',
                     data: data.denunciatoriConteggi,

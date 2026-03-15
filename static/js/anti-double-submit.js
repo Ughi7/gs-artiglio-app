@@ -5,13 +5,15 @@ window.initAntiDoubleSubmit = function () {
     const forms = document.querySelectorAll('form');
 
     forms.forEach(function (form) {
-        // Rimuovi listener precedentemente attaccato
-        const newForm = form.cloneNode(true);
-        form.parentNode.replaceChild(newForm, form);
+        if (form.dataset.antiDoubleSubmitBound === 'true') {
+            return;
+        }
 
-        newForm.addEventListener('submit', function (event) {
+        form.dataset.antiDoubleSubmitBound = 'true';
+
+        form.addEventListener('submit', function () {
             // Trova il bottone di submit (può essere button[type="submit"] o input[type="submit"])
-            const submitBtn = newForm.querySelector('button[type="submit"], input[type="submit"]');
+            const submitBtn = form.querySelector('button[type="submit"], input[type="submit"]');
 
             if (submitBtn && !submitBtn.disabled) {
                 // Salva la larghezza originale per evitare layout shift

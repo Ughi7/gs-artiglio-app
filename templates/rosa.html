@@ -203,7 +203,7 @@
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <form action="/aggiungi_giocatore" method="POST">
+                <form action="{{ url_for('roster.aggiungi_giocatore') }}" method="POST">
                     <div class="mb-3">
                         <label for="addNomeCompleto" class="form-label text-muted small">Nome e Cognome</label>
                         <input type="text" id="addNomeCompleto" name="nome_completo"
@@ -333,7 +333,7 @@
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <form action="/modifica_giocatore" method="POST">
+                <form action="{{ url_for('roster.modifica_giocatore') }}" method="POST">
                     <input type="hidden" name="user_id" id="editUserId">
 
                     <div class="mb-3">
@@ -491,7 +491,7 @@
                 <p class="text-muted small mb-3">
                     Stai per denunciare <span class="text-warning fw-bold" id="denunciaPlayerName"></span>
                 </p>
-                <form action="{{ url_for('main.denuncia_infrazione') }}" method="POST">
+                <form action="{{ url_for('fines.denuncia_infrazione') }}" method="POST">
                     <input type="hidden" name="user_id" id="denunciaPlayerId">
 
                     <div class="mb-3">

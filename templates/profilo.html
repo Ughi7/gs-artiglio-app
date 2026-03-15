@@ -257,7 +257,7 @@
         </button>
 
         <div class="collapse mt-3" id="formCertificato">
-            <form action="{{ url_for('main.upload_certificato') }}" method="POST" enctype="multipart/form-data">
+            <form action="{{ url_for('profile.upload_certificato') }}" method="POST" enctype="multipart/form-data">
                 <div class="mb-2">
                     <label class="form-label text-muted small">File Certificato</label>
                     <input type="file" name="certificato_file"
@@ -342,7 +342,7 @@
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <form action="{{ url_for('main.salva_bio') }}" method="POST">
+                <form action="{{ url_for('profile.salva_bio') }}" method="POST">
                     <div class="mb-3">
                         <label class="form-label text-muted small">La tua bio</label>
                         <textarea name="bio" class="form-control bg-black text-white border-secondary" rows="4"

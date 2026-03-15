@@ -6,7 +6,7 @@
     <h2 class="text-artiglio mb-0">PARTITE</h2>
     <div class="d-flex gap-2">
         <!-- Bottone Statistiche -->
-        <a href="{{ url_for('main.stats_partite') }}" class="btn btn-outline-info btn-sm">
+        <a href="{{ url_for('matches.stats_partite') }}" class="btn btn-outline-info btn-sm">
             <i class="bi bi-graph-up"></i>
         </a>
         <!-- Pulsante Info -->
@@ -124,7 +124,7 @@
                                         data-friendly="{{ 'true' if evento.is_friendly else 'false' }}">
                                         <i class="bi bi-pencil-fill"></i>
                                     </button>
-                                    <a href="/elimina_partita/{{ evento.id }}" class="btn btn-outline-danger confirm-delete-match"
+                                    <a href="{{ url_for('matches.elimina_partita', event_id=evento.id) }}" class="btn btn-outline-danger confirm-delete-match"
                                         data-confirm-message="Sicuro di voler eliminare questa partita?">
                                         <i class="bi bi-trash-fill"></i>
                                     </a>
@@ -147,7 +147,7 @@
                                 <span class="text-white fw-bold">{{ evento.count_presenti() }}</span> Attivi
                             </div>
 
-                            <a href="/segnala_assenza/{{ evento.id }}"
+                            <a href="{{ url_for('matches.segnala_assenza', event_id=evento.id) }}"
                                 class="btn btn-sm {{ 'btn-danger' if not evento.is_absent(current_user.id) else 'btn-outline-light' }}">
                                 {% if evento.is_absent(current_user.id) %} Annulla Assenza {% else %} 👎 Segna Assenza
                                 {% endif
@@ -202,7 +202,7 @@
                         data-bs-target="#scoreModal{{ evento.id }}" title="Modifica Punteggio">
                         <i class="bi bi-pencil"></i>
                     </button>
-                    <a href="/elimina_partita/{{ evento.id }}" class="btn btn-outline-danger confirm-delete-match"
+                    <a href="{{ url_for('matches.elimina_partita', event_id=evento.id) }}" class="btn btn-outline-danger confirm-delete-match"
                         data-confirm-message="Sicuro di voler eliminare questa partita dallo storico?"
                         title="Elimina Partita">
                         <i class="bi bi-trash-fill"></i>
@@ -272,7 +272,7 @@
                         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                     </div>
                     <div class="modal-body">
-                        <form action="{{ url_for('main.vote_mvp', event_id=evento.id) }}" method="POST">
+                        <form action="{{ url_for('matches.vote_mvp', event_id=evento.id) }}" method="POST">
                             <div class="list-group">
                                 {% for player in players %}
                                 <label
@@ -302,7 +302,7 @@
                         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                     </div>
                     <div class="modal-body">
-                        <form action="/salva_risultato" method="POST">
+                        <form action="{{ url_for('matches.salva_risultato') }}" method="POST">
                             <input type="hidden" name="event_id" value="{{ evento.id }}">
                             <div class="row text-center align-items-center mb-3">
                                 <div class="col">
@@ -339,7 +339,7 @@
                         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                     </div>
                     <div class="modal-body">
-                        <form action="/salva_statistiche" method="POST">
+                        <form action="{{ url_for('matches.salva_statistiche') }}" method="POST">
                             <input type="hidden" name="event_id" value="{{ evento.id }}">
 
                             <!-- Statistiche di Squadra -->

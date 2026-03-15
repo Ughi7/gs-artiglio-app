@@ -48,19 +48,34 @@ def create_app():
     # --------------------
     # REGISTER BLUEPRINTS
     # --------------------
-    from app.routes.main import main_bp
+    from app.routes.dashboard import dashboard_bp
     from app.routes.auth import auth_bp
+    from app.routes.fines import fines_bp
+    from app.routes.profile import profile_bp
+    from app.routes.roster import roster_bp
+    from app.routes.attendance import attendance_bp
+    from app.routes.matches import matches_bp
+    from app.routes.calendar import calendar_bp
     from app.routes.game import game_bp
     from app.routes.video import video_bp
     from app.routes.api import api_bp
     from app.routes.admin_custom import admin_custom_bp
 
-    app.register_blueprint(main_bp)
+    app.register_blueprint(dashboard_bp)
     app.register_blueprint(auth_bp)
+    app.register_blueprint(fines_bp)
+    app.register_blueprint(profile_bp)
+    app.register_blueprint(roster_bp)
+    app.register_blueprint(attendance_bp)
+    app.register_blueprint(matches_bp)
+    app.register_blueprint(calendar_bp)
     app.register_blueprint(game_bp)
     app.register_blueprint(video_bp)
     app.register_blueprint(api_bp)
     app.register_blueprint(admin_custom_bp)
+
+    with app.app_context():
+        db.create_all()
 
     @app.context_processor
     def inject_now():

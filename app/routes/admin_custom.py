@@ -1,38 +1,27 @@
 import os
-import json
 from datetime import datetime
 from flask import Blueprint, render_template, request, flash, redirect, url_for, jsonify, current_app
 from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
-from app.models import db, User, UserFeedback, AppRelease, UserSeenRelease, FlappyGameProfile, Achievement, UserAchievement
+from app.models import db, User, UserFeedback, AppRelease, UserSeenRelease
 from app.utils.json_services import JsonValidationError, parse_bool, parse_optional_text, parse_positive_int, require_json_object
 from app.utils.notifications import crea_notifica, get_nome_giocatore, send_push_notification
+from app.utils.admin_skin_service import (
+    ASSIGNABLE_SKINS,
+    InvalidSkinError,
+    apply_retroactive_top_skins,
+    assign_skin_to_users,
+    build_admin_skin_users_data,
+    decrement_skin_counter,
+    delete_skin_note,
+    edit_skin_note,
+    increment_skin_counter,
+)
 
 admin_custom_bp = Blueprint('admin_custom', __name__)
 
-ALLOWED_FEEDBACK_EXTENSIONS = {'png', 'jpg', 'jpeg', 'mp4', 'mov'}
+ALLOWED_FEEDBACK_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp', 'heic', 'heif', 'mp4', 'mov', 'm4v'}
 VALID_FEEDBACK_STATUS = {'pending', 'in_progress', 'resolved', 'rejected'}
-
-
-def _build_flappy_profile(user_id):
-    return FlappyGameProfile(
-        user_id=user_id,
-        unlocked_skins='["default"]',
-        selected_skin='default',
-        bug_report_notes='[]'
-    )
-
-
-def _get_or_create_flappy_profile(user_id):
-    profile = FlappyGameProfile.query.filter_by(user_id=user_id).first()
-    if profile:
-        return profile
-
-    profile = _build_flappy_profile(user_id)
-    db.session.add(profile)
-    db.session.flush()
-    return profile
-
 @admin_custom_bp.route('/aggiornamenti')
 @login_required
 def aggiornamenti():
@@ -59,6 +48,7 @@ def invia_feedback():
             if ext in ALLOWED_FEEDBACK_EXTENSIONS:
                 filename = f"{current_user.id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{secure_filename(file.filename)}"
                 filepath = os.path.join(current_app.config['FEEDBACK_UPLOAD_FOLDER'], filename)
+                os.makedirs(current_app.config['FEEDBACK_UPLOAD_FOLDER'], exist_ok=True)
                 file.save(filepath)
                 media_path = f"feedback/{filename}"
             else:
@@ -114,7 +104,7 @@ def dismiss_release():
 def admin_feedback():
     if not current_user.is_admin:
         flash('Accesso non autorizzato.', 'danger')
-        return redirect(url_for('main.home'))
+        return redirect(url_for('dashboard.home'))
     
     feedbacks = UserFeedback.query.order_by(UserFeedback.created_at.desc()).all()
     return render_template('admin_feedback.html', feedbacks=feedbacks)
@@ -123,7 +113,7 @@ def admin_feedback():
 @login_required
 def update_feedback_status(feedback_id):
     if not current_user.is_admin: return jsonify({'success': False, 'error': 'Non autorizzato'}), 403
-    feedback = UserFeedback.query.get_or_404(feedback_id)
+    feedback = db.get_or_404(UserFeedback, feedback_id)
     try:
         data = require_json_object(request.get_json(silent=True), 'Payload feedback non valido.')
     except JsonValidationError as exc:
@@ -148,7 +138,7 @@ def update_feedback_status(feedback_id):
 @login_required
 def delete_feedback(feedback_id):
     if not current_user.is_admin: return jsonify({'success': False, 'error': 'Non autorizzato'}), 403
-    feedback = UserFeedback.query.get_or_404(feedback_id)
+    feedback = db.get_or_404(UserFeedback, feedback_id)
     
     if feedback.media_path:
         try:
@@ -166,7 +156,7 @@ def delete_feedback(feedback_id):
 def nuovo_aggiornamento():
     if not current_user.is_admin:
         flash('Accesso non autorizzato.', 'danger')
-        return redirect(url_for('main.home'))
+        return redirect(url_for('dashboard.home'))
     
     version = request.form.get('version', '').strip()
     title = request.form.get('title', '').strip()
@@ -199,7 +189,7 @@ def nuovo_aggiornamento():
 @login_required
 def update_aggiornamento(release_id):
     if not current_user.is_admin: return jsonify({'success': False, 'error': 'Non autorizzato'}), 403
-    release = AppRelease.query.get_or_404(release_id)
+    release = db.get_or_404(AppRelease, release_id)
     try:
         data = require_json_object(request.get_json(silent=True), 'Payload aggiornamento non valido.')
     except JsonValidationError as exc:
@@ -245,7 +235,7 @@ def update_aggiornamento(release_id):
 @login_required
 def delete_aggiornamento(release_id):
     if not current_user.is_admin: return jsonify({'success': False, 'error': 'Non autorizzato'}), 403
-    release = AppRelease.query.get_or_404(release_id)
+    release = db.get_or_404(AppRelease, release_id)
     UserSeenRelease.query.filter_by(release_id=release_id).delete()
     db.session.delete(release)
     db.session.commit()
@@ -256,200 +246,62 @@ def delete_aggiornamento(release_id):
 def admin_assegna_skin():
     if not current_user.is_admin:
         flash('Accesso non autorizzato!', 'danger')
-        return redirect(url_for('main.home'))
-    
-    ASSIGNABLE_SKINS = {
-        'ladybug': {'name': 'Coccinella', 'icon': '🐞', 'event': '3 Segnalazioni Bug/Feedback', 'type': 'counter', 'threshold': 3, 'counter_field': 'bug_report_count'},
-    }
-    
+        return redirect(url_for('dashboard.home'))
+
     risultati = []
-    
+
     if request.method == 'POST':
         action = request.form.get('action', 'assign')
-        
-        if action == 'assign':
-            skin_id = request.form.get('skin_id')
-            user_ids = request.form.getlist('user_ids')
-            if skin_id not in ASSIGNABLE_SKINS:
-                flash('Skin non valida!', 'danger')
-                return redirect(url_for('admin_custom.admin_assegna_skin'))
-            
-            skin_info = ASSIGNABLE_SKINS[skin_id]
-            for uid in user_ids:
-                user = db.session.get(User, int(uid))
-                if not user: continue
-                profile = _get_or_create_flappy_profile(user.id)
-                unlocked = json.loads(profile.unlocked_skins)
-                if skin_id not in unlocked:
-                    unlocked.append(skin_id)
-                    profile.unlocked_skins = json.dumps(unlocked)
-                    crea_notifica('skin_unlock', f'🎨 {get_nome_giocatore(user)} ha sbloccato la skin {skin_info["name"]}! {skin_info["icon"]}', icon=skin_info['icon'])
-                    risultati.append({'user': get_nome_giocatore(user), 'skin': skin_info['name'], 'icon': skin_info['icon'], 'status': 'Assegnata!'})
-                else: risultati.append({'user': get_nome_giocatore(user), 'skin': skin_info['name'], 'icon': skin_info['icon'], 'status': 'Già sbloccata'})
-            db.session.commit()
-        
-        elif action == 'increment_counter':
-            skin_id = request.form.get('skin_id')
-            user_id = request.form.get('user_id')
-            note = request.form.get('note', '').strip()
-            
-            if skin_id not in ASSIGNABLE_SKINS or ASSIGNABLE_SKINS[skin_id].get('type') != 'counter':
-                flash('Skin non valida per incremento.', 'danger')
-                return redirect(url_for('admin_custom.admin_assegna_skin'))
-            
-            skin_info = ASSIGNABLE_SKINS[skin_id]
-            user = db.session.get(User, int(user_id))
-            if user:
-                profile = _get_or_create_flappy_profile(user.id)
-                counter_field = skin_info['counter_field']
-                new_val = (getattr(profile, counter_field, 0) or 0) + 1
-                setattr(profile, counter_field, new_val)
-                
-                notes = json.loads(profile.bug_report_notes or '[]')
-                notes.append({'note': note or '(nessuna descrizione)', 'date': datetime.now().strftime('%d/%m/%Y %H:%M')})
-                profile.bug_report_notes = json.dumps(notes)
-                
-                unlocked = json.loads(profile.unlocked_skins)
-                if new_val >= skin_info['threshold'] and skin_id not in unlocked:
-                    unlocked.append(skin_id)
-                    profile.unlocked_skins = json.dumps(unlocked)
-                    crea_notifica('skin_unlock', f'🎨 {get_nome_giocatore(user)} ha sbloccato la skin {skin_info["name"]}! {skin_info["icon"]} {skin_info["event"]}', icon=skin_info['icon'])
-                    risultati.append({'user': get_nome_giocatore(user), 'skin': skin_info['name'], 'icon': skin_info['icon'], 'status': f'Counter {new_val}/{skin_info["threshold"]} - SKIN SBLOCCATA! 🎉'})
-                else: risultati.append({'user': get_nome_giocatore(user), 'skin': skin_info['name'], 'icon': skin_info['icon'], 'status': f'Counter aggiornato: {new_val}/{skin_info["threshold"]}'})
-                db.session.commit()
-                
-        elif action == 'decrement_counter':
-            skin_id = request.form.get('skin_id')
-            user_id = request.form.get('user_id')
-            if skin_id not in ASSIGNABLE_SKINS or ASSIGNABLE_SKINS[skin_id].get('type') != 'counter': return redirect(url_for('admin_custom.admin_assegna_skin'))
-            
-            user = db.session.get(User, int(user_id))
-            if user:
-                profile = _get_or_create_flappy_profile(user.id)
-                if profile:
-                    counter_field = ASSIGNABLE_SKINS[skin_id]['counter_field']
-                    new_val = max(0, (getattr(profile, counter_field, 0) or 0) - 1)
-                    setattr(profile, counter_field, new_val)
-                    risultati.append({'user': get_nome_giocatore(user), 'skin': ASSIGNABLE_SKINS[skin_id]['name'], 'icon': ASSIGNABLE_SKINS[skin_id]['icon'], 'status': f'Counter aggiornato: {new_val}/{ASSIGNABLE_SKINS[skin_id]["threshold"]}'})
-                    db.session.commit()
-                    
-        elif action == 'delete_note':
-            user_id = request.form.get('user_id')
-            note_index = request.form.get('note_index')
-            if user_id and note_index is not None:
-                profile = _get_or_create_flappy_profile(int(user_id))
-                if profile:
-                    try:
-                        idx = int(note_index)
-                        notes = json.loads(profile.bug_report_notes or '[]')
-                        if 0 <= idx < len(notes):
-                            del notes[idx]
-                            profile.bug_report_notes = json.dumps(notes)
-                            db.session.commit()
-                            risultati.append({'user': get_nome_giocatore(db.session.get(User, int(user_id))), 'skin': 'Segnalazioni', 'icon': '📝', 'status': 'Nota eliminata'})
-                    except ValueError: pass
-                    
-        elif action == 'edit_note':
-            user_id = request.form.get('user_id')
-            note_index = request.form.get('note_index')
-            new_text = request.form.get('new_text', '').strip()
-            if user_id and note_index is not None and new_text:
-                profile = _get_or_create_flappy_profile(int(user_id))
-                if profile:
-                    try:
-                        idx = int(note_index)
-                        notes = json.loads(profile.bug_report_notes or '[]')
-                        if 0 <= idx < len(notes):
-                            notes[idx]['note'] = new_text
-                            profile.bug_report_notes = json.dumps(notes)
-                            db.session.commit()
-                            risultati.append({'user': get_nome_giocatore(db.session.get(User, int(user_id))), 'skin': 'Segnalazioni', 'icon': '📝', 'status': 'Nota modificata'})
-                    except ValueError: pass
 
-    from sqlalchemy import or_
-    users = User.query.filter(or_(User.is_admin == False, User.is_admin == None)).order_by(User.nome_completo).all()
-    user_ids = [user.id for user in users]
-    profiles_by_user_id = {
-        profile.user_id: profile
-        for profile in FlappyGameProfile.query.filter(FlappyGameProfile.user_id.in_(user_ids)).all()
-    } if user_ids else {}
+        try:
+            if action == 'assign':
+                risultati.extend(assign_skin_to_users(request.form.get('skin_id'), request.form.getlist('user_ids')))
+            elif action == 'increment_counter':
+                result = increment_skin_counter(
+                    request.form.get('skin_id'),
+                    request.form.get('user_id'),
+                    request.form.get('note', '').strip(),
+                    now=datetime.now(),
+                )
+                if result:
+                    risultati.append(result)
+            elif action == 'decrement_counter':
+                result = decrement_skin_counter(request.form.get('skin_id'), request.form.get('user_id'))
+                if result:
+                    risultati.append(result)
+            elif action == 'delete_note':
+                result = delete_skin_note(request.form.get('user_id'), request.form.get('note_index'))
+                if result:
+                    risultati.append(result)
+            elif action == 'edit_note':
+                result = edit_skin_note(
+                    request.form.get('user_id'),
+                    request.form.get('note_index'),
+                    request.form.get('new_text', '').strip(),
+                )
+                if result:
+                    risultati.append(result)
+        except InvalidSkinError:
+            invalid_message = 'Skin non valida per incremento.' if action == 'increment_counter' else 'Skin non valida.'
+            if action == 'assign':
+                invalid_message = 'Skin non valida!'
+            flash(invalid_message, 'danger')
+            return redirect(url_for('admin_custom.admin_assegna_skin'))
 
-    missing_profiles = []
-    for user in users:
-        if user.id not in profiles_by_user_id:
-            profile = _build_flappy_profile(user.id)
-            missing_profiles.append(profile)
-            profiles_by_user_id[user.id] = profile
-
-    if missing_profiles:
-        db.session.add_all(missing_profiles)
-        db.session.commit()
-
-    users_data = []
-    for u in users:
-        profile = profiles_by_user_id.get(u.id)
-        unlocked = json.loads(profile.unlocked_skins) if profile else []
-        counters = {}
-        for sid, sinfo in ASSIGNABLE_SKINS.items():
-            if sinfo.get('type') == 'counter' and profile:
-                try: counters[sid] = getattr(profile, sinfo['counter_field'], 0) or 0
-                except Exception: counters[sid] = 0
-        users_data.append({
-            'id': u.id,
-            'nome': get_nome_giocatore(u),
-            'skins': {sid: (sid in unlocked) for sid in ASSIGNABLE_SKINS},
-            'counters': counters,
-            'notes': json.loads(profile.bug_report_notes or '[]') if profile else []
-        })
-    
-    return render_template('admin_assegna_skin.html', skins=ASSIGNABLE_SKINS, users=users_data, risultati=risultati)
+    return render_template('admin_assegna_skin.html', skins=ASSIGNABLE_SKINS, users=build_admin_skin_users_data(), risultati=risultati)
 
 @admin_custom_bp.route('/admin/fix-top-skins-retroattiva')
 @login_required
 def admin_fix_top_skins_retroattiva():
     if not current_user.is_admin:
         flash('Accesso non autorizzato!', 'danger')
-        return redirect(url_for('main.home'))
-    
-    top_badge_skin_map = {
-        'top_donatore_mese': 'mosquito',
-        'top_denunciatore_mese': 'raven',
-        'top_mvp_mese': 'dove',
-        'top_floppy_mese': 'goat'
-    }
-    
-    total_assigned = 0
-    assigned_details = []
-    
-    for badge_code, skin_id in top_badge_skin_map.items():
-        badge = Achievement.query.filter_by(code=badge_code).first()
-        if not badge: continue
-        
-        winners = UserAchievement.query.filter_by(achievement_id=badge.id).all()
-        count_for_badge = 0
-        
-        for ua in winners:
-            profile = FlappyGameProfile.query.filter_by(user_id=ua.user_id).first()
-            if profile:
-                unlocked = json.loads(profile.unlocked_skins)
-                if skin_id not in unlocked:
-                    unlocked.append(skin_id)
-                    profile.unlocked_skins = json.dumps(unlocked)
-                    
-                    user = db.session.get(User, ua.user_id)
-                    skin_name = {"mosquito": "ZANZARA 🦟", "raven": "CORVO 🐦‍⬛", "dove": "COLOMBA 🕊️", "goat": "CAPRA 🐐"}.get(skin_id, skin_id.capitalize())
-                    crea_notifica('skin_unlock', f'🎨 {get_nome_giocatore(user)} ha sbloccato la skin {skin_name} tramite recupero premi passati!', icon='✨', send_push=True)
-                    
-                    count_for_badge += 1
-                    total_assigned += 1
-        
-        if count_for_badge > 0: assigned_details.append(f"{count_for_badge} {skin_id}")
-            
-    db.session.commit()
-    
+        return redirect(url_for('dashboard.home'))
+
+    total_assigned, assigned_details = apply_retroactive_top_skins()
+
     if total_assigned > 0:
         flash(f'Sincronizzazione completata! Assegnate {total_assigned} skin retroattive ({", ".join(assigned_details)}).', 'success')
     else:
         flash('Tutti i vincitori dei Top Badge possiedono già le relative skin. Nessuna nuova assegnazione necessaria.', 'info')
-        
-    return redirect(url_for('main.admin_assegna_badge_mensili'))
+
+    return redirect(url_for('dashboard.admin_assegna_badge_mensili'))

@@ -1,9 +1,7 @@
 from datetime import datetime, timedelta
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 
-from sqlalchemy import func
-
-from app.models import Event, Fine, MatchStats, User, db
+from app.models import User, db
 
 
 VALID_PAYMENT_METHODS = {'contanti', 'paypal'}
@@ -99,52 +97,30 @@ def parse_new_fine_form(form):
     }
 
 
+def parse_denuncia_form(form):
+    user_id = _parse_positive_int(form.get('user_id'), 'Giocatore')
+    infraction_date = _parse_fine_date(form.get('data_infrazione'))
+    note = _clean_text(form.get('note'))
+
+    return {
+        'user': _get_user_or_raise(user_id),
+        'amount': _parse_amount(form.get('importo', 2)),
+        'reason': _parse_reason(form.get('motivazione')),
+        'date': infraction_date,
+        'deadline': infraction_date + timedelta(weeks=3),
+        'note': note or None,
+    }
+
+
 def parse_fine_update_form(form):
     fine_id = _parse_positive_int(form.get('fine_id'), 'Multa')
     is_paid = form.get('paid') == 'on'
+    payment_method = normalize_payment_method(form.get('payment_method'), required=is_paid) if is_paid else None
 
     return {
         'fine_id': fine_id,
         'amount': _parse_amount(form.get('amount')),
         'reason': _parse_reason(form.get('reason')),
         'paid': is_paid,
-        'payment_method': normalize_payment_method(form.get('payment_method'), required=is_paid)
-    }
-
-
-def get_user_profile_summary(user):
-    totals = db.session.query(
-        func.coalesce(func.sum(MatchStats.points), 0),
-        func.coalesce(func.sum(MatchStats.aces), 0),
-        func.coalesce(func.sum(MatchStats.blocks), 0)
-    ).join(Event).filter(
-        MatchStats.user_id == user.id,
-        Event.is_friendly == False
-    ).one()
-
-    achievements_list = [
-        {
-            'icon': ua.achievement.icon,
-            'name': ua.achievement.name,
-            'desc': ua.achievement.description,
-            'color': ua.achievement.color if ua.achievement.color else 'bg-warning',
-            'is_monthly': ua.achievement.is_monthly,
-            'month': ua.month,
-            'year': ua.year
-        }
-        for ua in user.achievements
-    ]
-
-    return {
-        'mvp_count': Event.query.filter(
-            Event.mvp_id == user.id,
-            Event.is_friendly == False
-        ).count(),
-        'total_points': totals[0],
-        'total_aces': totals[1],
-        'total_blocks': totals[2],
-        'total_multe_count': Fine.query.filter_by(user_id=user.id).count(),
-        'denunce_fatte': Fine.query.filter_by(denunciante_id=user.id).count(),
-        'denunce_prese': Fine.query.filter(Fine.user_id == user.id, Fine.denunciante_id != None).count(),
-        'achievements_list': achievements_list,
+        'payment_method': payment_method,
     }

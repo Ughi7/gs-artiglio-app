@@ -256,6 +256,21 @@ body {
             #skins-container {
                 gap: 8px !important;
             }
+
+            #skins-screen {
+                width: min(94vw, 430px);
+                max-width: calc(100vw - 16px);
+                padding: 20px 10px calc(20px + env(safe-area-inset-bottom, 0px));
+            }
+
+            #skin-info-box {
+                max-width: 100% !important;
+            }
+
+            #skins-grid {
+                gap: 6px !important;
+                padding: 0 4px !important;
+            }
         }
 
         @media (max-width: 400px) {
@@ -288,12 +303,23 @@ body {
             color: white;
             pointer-events: auto;
             box-shadow: 0 0 30px rgba(255, 193, 7, 0.3);
+            width: min(92vw, 430px);
+            max-width: calc(100vw - 24px);
             max-height: 85vh;
             overflow-y: auto !important;
             -webkit-overflow-scrolling: touch;
             touch-action: auto !important;
             position: absolute;
             z-index: 9999;
+            box-sizing: border-box;
+        }
+
+        #skins-grid {
+            grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+            width: 100%;
+            max-width: 100%;
+            box-sizing: border-box;
+            overflow-x: hidden;
         }
 
         #skins-screen .btn {

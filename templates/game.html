@@ -9,6 +9,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@700&display=swap" rel="stylesheet">
     <link rel="icon"
         href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🦅</text></svg>">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     {% block extra_css %}
     <link rel="stylesheet" href="{{ url_for('static', filename='css/game.css') }}?v=1772534340">
     {% endblock %}
@@ -16,7 +17,7 @@
 
 <body>
 
-    <canvas id="gameCanvas" data-is-admin="{{ 'true' if current_user.is_admin else 'false' }}"></canvas>
+    <canvas id="gameCanvas" data-is-admin="{{ 'true' if current_user.is_admin else 'false' }}" data-user-id="{{ current_user.id }}"></canvas>
 
     <div id="emoji-layer" aria-hidden="true"></div>
 
@@ -54,7 +55,7 @@
             <p style="font-size: 16px; color: #FFC107; margin-top: 30px;">✅ Puoi comunque consultare le classifiche!</p>
             <button class="btn btn-outline" data-action="leaderboard-open"
                 onclick="showLeaderboard()">CLASSIFICA</button>
-            <a href="{{ url_for('main.home') }}" class="btn btn-outline">ESCI</a>
+            <a href="{{ url_for('dashboard.home') }}" class="btn btn-outline">ESCI</a>
         </div>
 
         <div id="start-screen">
@@ -146,7 +147,7 @@
                 </div>
             </div>
 
-            <a href="{{ url_for('main.home') }}" class="btn btn-outline"
+            <a href="{{ url_for('dashboard.home') }}" class="btn btn-outline"
                 style="font-size: 13px; padding: 6px 15px; border: none; opacity: 0.7;">↩️ Torna alla Home</a>
 
             <!-- Top Controls Container -->
@@ -314,6 +315,7 @@
             <h1>GAME OVER</h1>
             <div class="score-display" id="final-score">0</div>
             <p>Miglior Punteggio: <span id="best-score">0</span></p>
+            <p style="margin-top: -10px; margin-bottom: 20px; font-size: 18px; color: #FFD700; font-weight: bold;">🪙 Monete Raccolte: <span id="final-coins">0</span></p>
             <button class="btn" id="restart-btn" onclick="riavviaGioco()">RIPROVA</button>
             <button class="btn btn-outline" onclick="showLeaderboard()">CLASSIFICA</button>
             <a href="{{ url_for('game.game') }}" class="btn btn-outline">ESCI</a>

@@ -1,26 +1,50 @@
 import json
 from datetime import datetime, timedelta
 
-from app.models import Fine, FineVote, User, db
+from app.models import Fine, FineVote, User, db, VoteHistory
 from app.utils.notifications import crea_notifica, get_nome_giocatore
 
 
 def get_eligible_voters_count():
-    return User.query.filter(
+    return len(get_eligible_voter_ids())
+
+
+def get_eligible_voter_ids():
+    voter_rows = db.session.query(User.id).filter(
         User.is_coach.isnot(True),
         User.is_presidente.isnot(True)
-    ).count()
+    ).all()
+    return {user_id for user_id, in voter_rows}
 
 
-def calculate_vote_quorum(fine):
+def get_vote_exclusions(fine, eligible_voter_ids=None):
+    eligible_voter_ids = eligible_voter_ids or get_eligible_voter_ids()
+
     try:
         excluded = json.loads(fine.excluded_voters or '[]')
     except Exception:
         excluded = []
 
-    eligible_voters_total = get_eligible_voters_count()
-    effective_voters = max(0, eligible_voters_total - len(excluded) - 1)
-    return max(1, (effective_voters // 2) + 1), excluded
+    excluded_ids = set()
+    for user_id in excluded:
+        try:
+            normalized_id = int(user_id)
+        except (TypeError, ValueError):
+            continue
+        if normalized_id in eligible_voter_ids:
+            excluded_ids.add(normalized_id)
+
+    if fine.user_id in eligible_voter_ids:
+        excluded_ids.add(fine.user_id)
+
+    return excluded_ids
+
+
+def calculate_vote_quorum(fine, eligible_voter_ids=None):
+    eligible_voter_ids = eligible_voter_ids or get_eligible_voter_ids()
+    excluded_ids = get_vote_exclusions(fine, eligible_voter_ids)
+    effective_voters = max(0, len(eligible_voter_ids - excluded_ids))
+    return max(1, (effective_voters // 2) + 1), sorted(excluded_ids)
 
 
 def check_and_apply_late_fees(now=None):
@@ -84,9 +108,45 @@ def check_and_close_expired_votes(now=None):
 
         multato = db.session.get(User, fine.user_id)
         multato_nome = get_nome_giocatore(multato)
-        fine.voting_active = False
+        quorum_reached = total_votes >= quorum
 
-        if approve_count >= quorum:
+        # --- UPDATE STORICO VOTAZIONI ---
+        eligible_voters = get_eligible_voter_ids()
+        excluded = get_vote_exclusions(fine, eligible_voters)
+        actual_eligible = eligible_voters - excluded
+        voted_ids = {v[0] for v in db.session.query(FineVote.user_id).filter_by(fine_id=fine.id).all()}
+        non_voter_ids = actual_eligible - voted_ids
+        
+        non_voters_names = []
+        for n_id in non_voter_ids:
+            u = db.session.get(User, n_id)
+            if u:
+                non_voters_names.append(get_nome_giocatore(u))
+                
+        outcome_str = 'approved' if (quorum_reached and approve_count > reject_count) else ('rejected_quorum' if not quorum_reached else 'rejected_votes')
+        denunciante_nome = 'Sconosciuto'
+        if fine.denunciante_id:
+            d_user = db.session.get(User, fine.denunciante_id)
+            if d_user:
+                denunciante_nome = get_nome_giocatore(d_user)
+
+        history = VoteHistory(
+            fine_reason=fine.reason,
+            multato_name=multato_nome,
+            denunciante_name=denunciante_nome,
+            outcome=outcome_str,
+            approve_count=approve_count,
+            reject_count=reject_count,
+            total_voters=total_votes,
+            quorum=quorum,
+            non_voters=json.dumps(non_voters_names),
+            closed_at=current_time
+        )
+        db.session.add(history)
+        # --------------------------------
+
+        if quorum_reached and approve_count > reject_count:
+            fine.voting_active = False
             fine.pending_approval = False
             if multato:
                 multato.current_streak = 0
@@ -96,15 +156,27 @@ def check_and_close_expired_votes(now=None):
                 icon='✅'
             )
         else:
-            fine.pending_approval = True
+            if not quorum_reached:
+                message = (
+                    f'📊 Votazione conclusa: multa a {multato_nome} RESPINTA. '
+                    f'Quorum non raggiunto ({total_votes}/{quorum} voti).'
+                )
+            else:
+                message = (
+                    f'📊 Votazione conclusa: multa a {multato_nome} RESPINTA. '
+                    f'({approve_count} favorevoli, {reject_count} contrari su {total_votes} votanti)'
+                )
+
             crea_notifica(
                 'denuncia_votazione_chiusa',
-                f'📊 Votazione conclusa: multa a {multato_nome} RESPINTA. ({approve_count} favorevoli, {reject_count} contrari - servivano {quorum} voti)',
+                message,
                 icon='❌'
             )
+
+            FineVote.query.filter_by(fine_id=fine.id).delete()
+            db.session.delete(fine)
 
     if expired_votes:
         db.session.commit()
 
-    cleanup_old_rejected_votes(current_time)
     return len(expired_votes)

@@ -13,6 +13,10 @@
         </a>
         {% endif %}
 
+        <button class="btn btn-outline-info btn-sm" type="button" data-bs-toggle="modal" data-bs-target="#storicoVotazioniModal" title="Storico votazioni" aria-label="Storico votazioni">
+            <i class="bi bi-clock-history"></i>
+        </button>
+
         {% if current_user.is_admin or current_user.is_notaio %}
         <button class="btn btn-outline-secondary btn-sm" data-bs-toggle="modal"
             data-bs-target="#uploadRegolamentoModal">
@@ -21,7 +25,7 @@
         {% endif %}
 
         <!-- Bottone Statistiche -->
-        <a href="{{ url_for('main.stats_multe') }}" class="btn btn-outline-info btn-sm">
+        <a href="{{ url_for('fines.stats_multe') }}" class="btn btn-outline-info btn-sm">
             <i class="bi bi-graph-up"></i>
         </a>
         <!-- Pulsante Info -->
@@ -131,7 +135,7 @@
                             {% endif %}
                         </td>
                         <td class="text-end">
-                            <form action="{{ url_for('main.elimina_transazione', trans_id=trans.id) }}" method="POST"
+                            <form action="{{ url_for('fines.elimina_transazione', trans_id=trans.id) }}" method="POST"
                                 style="display:inline;" class="confirm-submit"
                                 data-confirm-message="Eliminare questa transazione?">
                                 <button type="submit" class="btn btn-sm btn-outline-danger border-0" title="Elimina">
@@ -185,12 +189,10 @@
                     {% endif %}
                     <div class="d-flex gap-3 mt-1" style="font-size: 0.75rem;">
                         <span class="text-secondary">📅 Data: {{ denuncia.date.strftime('%d/%m/%Y') }}</span>
-                        {% if denuncia.denunciante_id %}
-                        {% set denunciante = User.query.get(denuncia.denunciante_id) %}
+                        {% set denunciante = denuncianti_by_id.get(denuncia.denunciante_id) %}
                         {% if denunciante %}
                         <span class="text-info">👤 Denunciato da: {{ denunciante.soprannome if denunciante.soprannome
                             else denunciante.nome_completo }}</span>
-                        {% endif %}
                         {% endif %}
                     </div>
                 </div>
@@ -200,20 +202,20 @@
                     <div class="btn-group btn-group-sm">
                         {% if current_user.is_admin or current_user.is_notaio %}
                         <!-- Admin/Notai possono approvare, rifiutare o mettere ai voti -->
-                        <form action="{{ url_for('main.approva_denuncia', fine_id=denuncia.id) }}" method="POST"
+                        <form action="{{ url_for('fines.approva_denuncia', fine_id=denuncia.id) }}" method="POST"
                             style="display:inline;">
                             <button type="submit" class="btn btn-success" title="Approva">
                                 <i class="bi bi-check-lg"></i>
                             </button>
                         </form>
-                        <form action="{{ url_for('main.avvia_votazione', fine_id=denuncia.id) }}" method="POST"
+                        <form action="{{ url_for('fines.avvia_votazione', fine_id=denuncia.id) }}" method="POST"
                             style="display:inline;" class="confirm-submit"
                             data-confirm-message="Mettere ai voti questa denuncia? La votazione durerà 24 ore.">
                             <button type="submit" class="btn btn-info" title="Metti ai Voti">
                                 <i class="bi bi-people-fill"></i> Vota
                             </button>
                         </form>
-                        <form action="{{ url_for('main.rifiuta_denuncia', fine_id=denuncia.id) }}" method="POST"
+                        <form action="{{ url_for('fines.rifiuta_denuncia', fine_id=denuncia.id) }}" method="POST"
                             style="display:inline;" class="confirm-submit"
                             data-confirm-message="Rifiutare questa denuncia?">
                             <button type="submit" class="btn btn-danger" title="Rifiuta">
@@ -336,7 +338,7 @@
                             data-bs-target="#impostazioniVotazioneModal{{ denuncia.id }}" title="Impostazioni">
                             <i class="bi bi-gear-fill" style="font-size: 0.8rem;"></i>
                         </button>
-                        <form action="{{ url_for('main.elimina_votazione', fine_id=denuncia.id) }}" method="POST"
+                        <form action="{{ url_for('fines.elimina_votazione', fine_id=denuncia.id) }}" method="POST"
                             style="display:inline;" class="confirm-submit"
                             data-confirm-message="Annullare questa votazione?">
                             <button type="submit" class="btn btn-outline-danger btn-sm rounded-circle p-0"
@@ -359,12 +361,12 @@
                         </span>
                         {% elif user_votes[denuncia.id] is none %}
                         <div class="d-flex gap-2">
-                            <form action="{{ url_for('main.vota_denuncia', fine_id=denuncia.id) }}" method="POST">
+                            <form action="{{ url_for('fines.vota_denuncia', fine_id=denuncia.id) }}" method="POST">
                                 <input type="hidden" name="vote" value="1">
                                 <button type="submit"
                                     class="btn btn-sm btn-outline-success px-3 fw-bold rounded-pill">SÌ</button>
                             </form>
-                            <form action="{{ url_for('main.vota_denuncia', fine_id=denuncia.id) }}" method="POST">
+                            <form action="{{ url_for('fines.vota_denuncia', fine_id=denuncia.id) }}" method="POST">
                                 <input type="hidden" name="vote" value="0">
                                 <button type="submit"
                                     class="btn btn-sm btn-outline-danger px-3 fw-bold rounded-pill">NO</button>
@@ -376,7 +378,7 @@
                                 class="badge {{ 'bg-success' if user_votes[denuncia.id] else 'bg-danger' }} rounded-pill px-3 py-1">
                                 HAI VOTATO {{ 'SÌ' if user_votes[denuncia.id] else 'NO' }}
                             </span>
-                            <form action="{{ url_for('main.vota_denuncia', fine_id=denuncia.id) }}" method="POST"
+                            <form action="{{ url_for('fines.vota_denuncia', fine_id=denuncia.id) }}" method="POST"
                                 style="display:inline;">
                                 <input type="hidden" name="vote" value="{{ '0' if user_votes[denuncia.id] else '1' }}">
                                 <button type="submit" class="btn btn-link link-light p-0" title="Cambia voto">
@@ -410,7 +412,7 @@
                 </h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
-            <form action="{{ url_for('main.modifica_impostazioni_votazione', fine_id=denuncia.id) }}" method="POST">
+            <form action="{{ url_for('fines.modifica_impostazioni_votazione', fine_id=denuncia.id) }}" method="POST">
                 <div class="modal-body">
                     <p class="text-muted small mb-3">
                         Seleziona i giocatori da <strong>escludere</strong> dalla votazione (es. assenti).
@@ -652,12 +654,12 @@
         <label class="form-label text-white-50 small">Filtra per Mese</label>
         <div class="mesi-scroll-container shadow">
             <div class="d-flex flex-nowrap gap-2">
-                <a href="{{ url_for('main.multe', month='all', person=filter_person) }}"
+                <a href="{{ url_for('fines.multe', month='all', person=filter_person) }}"
                     class="btn btn-outline-warning flex-shrink-0 {{ 'active' if filter_month == 'all' else '' }}">
                     <i class="bi bi-calendar-fill"></i> Tutte
                 </a>
                 {% for month in available_months %}
-                <a href="{{ url_for('main.multe', month=month, person=filter_person) }}"
+                <a href="{{ url_for('fines.multe', month=month, person=filter_person) }}"
                     class="btn btn-outline-warning flex-shrink-0 {{ 'active' if filter_month == month else '' }}">
                     {{ month }}
                 </a>
@@ -798,7 +800,7 @@
                 <h5 class="modal-title text-danger"><i class="bi bi-plus-circle me-2"></i>Nuova Multa</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
-            <form action="{{ url_for('main.aggiungi_multa') }}" method="POST">
+            <form action="{{ url_for('fines.aggiungi_multa') }}" method="POST">
                 <div class="modal-body">
                     <div class="mb-3">
                         <label class="form-label">Giocatore</label>
@@ -842,7 +844,7 @@
                 <h5 class="modal-title text-warning"><i class="bi bi-pencil me-2"></i>Modifica Multa</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
-            <form action="{{ url_for('main.modifica_multa') }}" method="POST">
+            <form action="{{ url_for('fines.modifica_multa') }}" method="POST">
                 <input type="hidden" name="fine_id" id="editFineId">
                 <div class="modal-body">
                     <div class="mb-3">
@@ -900,7 +902,7 @@
                 <h5 class="modal-title"><i class="bi bi-file-earmark-pdf me-2"></i>Carica Regolamento</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
-            <form action="{{ url_for('main.upload_regolamento') }}" method="POST" enctype="multipart/form-data">
+            <form action="{{ url_for('fines.upload_regolamento') }}" method="POST" enctype="multipart/form-data">
                 <div class="modal-body">
                     <p class="small text-muted mb-3">Carica il nuovo file del Regolamento Multe. Il file precedente
                         verrà sovrascritto.</p>
@@ -930,7 +932,7 @@
                 </h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
-            <form action="{{ url_for('main.aggiungi_transazione') }}" method="POST">
+            <form action="{{ url_for('fines.aggiungi_transazione') }}" method="POST">
                 <input type="hidden" name="transaction_type" id="transactionTypeInput" value="uscita">
                 <div class="modal-body">
                     <div class="mb-3">
@@ -1034,6 +1036,57 @@
 </div>
 
 
+
+<!-- Modal Storico Votazioni -->
+<div class="modal fade" id="storicoVotazioniModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+        <div class="modal-content bg-dark border-light text-white">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title"><i class="bi bi-clock-history me-2"></i>Storico Votazioni Concluse</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                {% if storico_votazioni %}
+                    <div class="list-group bg-dark">
+                    {% for sv in storico_votazioni %}
+                        <div class="list-group-item bg-dark text-white border-secondary mb-2 rounded">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <strong>{{ sv.multato_name }}</strong>
+                                <small class="text-muted">{{ sv.closed_at.strftime('%d/%m/%Y %H:%M') }}</small>
+                            </div>
+                            <p class="mb-1 small">Infrazione: <em>{{ sv.fine_reason }}</em></p>
+                            
+                            <div class="d-flex align-items-center mb-2">
+                                Esito: 
+                                {% if sv.outcome == 'approved' %}
+                                    <span class="badge bg-success ms-2">Approvata</span>
+                                {% elif sv.outcome == 'rejected_quorum' %}
+                                    <span class="badge bg-warning text-dark ms-2">Respinta (Quorum)</span>
+                                {% else %}
+                                    <span class="badge bg-danger ms-2">Respinta (Voti)</span>
+                                {% endif %}
+                                <small class="ms-auto text-muted">Voti: {{ sv.approve_count }} Pro / {{ sv.reject_count }} Contro ({{ sv.total_voters }}/{{ sv.quorum }} quorum)</small>
+                            </div>
+
+                            {% if sv.non_voters_list %}
+                                <div class="mt-2 pt-2 border-top border-secondary small text-muted">
+                                    <i class="bi bi-person-x-fill me-1"></i><strong>Non hanno votato:</strong>
+                                    {{ sv.non_voters_list | join(', ') }}
+                                </div>
+                            {% endif %}
+                        </div>
+                    {% endfor %}
+                    </div>
+                {% else %}
+                    <p class="text-center text-muted my-3">Nessuna votazione conclusa o storico vuoto.</p>
+                {% endif %}
+            </div>
+            <div class="modal-footer border-secondary">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Chiudi</button>
+            </div>
+        </div>
+    </div>
+</div>
 
 {% endblock %}
 

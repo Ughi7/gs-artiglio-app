@@ -61,8 +61,12 @@ def setup_db():
 def service_worker():
     from flask import send_file
     import os
-    # root_path punta alla cartella 'app', quindi andiamo su di una directory per trovare sw.js nella cartella principale
-    sw_path = os.path.join(os.path.dirname(current_app.root_path), 'sw.js')
+    # Percorso standard: static/sw.js. Fallback al root storico per retrocompatibilità.
+    static_sw_path = os.path.join(current_app.static_folder, 'sw.js')
+    if os.path.exists(static_sw_path):
+        sw_path = static_sw_path
+    else:
+        sw_path = os.path.join(os.path.dirname(current_app.root_path), 'sw.js')
     return send_file(sw_path, mimetype='application/javascript')
 
 @api_bp.route('/get_vapid_public_key')
