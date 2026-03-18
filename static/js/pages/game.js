@@ -622,6 +622,14 @@ window.initGameEngine = function(isAdminValue) {
         }
 
         function initDailyMissions() {
+            // Assicurati che currentUserId sia impostato prima di caricare le missioni
+            if (!window.currentUserId) {
+                var canvas = document.getElementById('gameCanvas');
+                if (canvas) {
+                    window.currentUserId = canvas.getAttribute('data-user-id');
+                }
+            }
+
             // Pulisci sempre le chiavi vecchie all'avvio
             cleanOldMissionKeys();
 
@@ -692,18 +700,18 @@ window.initGameEngine = function(isAdminValue) {
 
                 if (m.type === 'collect' && event === 'collect' && val.type === m.item) {
                     m.progress++;
-                } else if (m.type === 'score' && event === 'game_over' && val >= m.target) {
-                    m.progress = m.target;
-                } else if (m.type === 'level' && event === 'level_up' && val >= m.target) {
-                    m.progress = m.target;
+                } else if (m.type === 'score' && event === 'game_over') {
+                    m.progress = Math.max(m.progress, val);
+                } else if (m.type === 'level' && event === 'level_up') {
+                    m.progress = Math.max(m.progress, val);
                 } else if (m.type === 'games' && event === 'game_start') {
                     m.progress++;
                 } else if (m.type === 'combo' && event === 'collect_safe') {
                     m.progress++;
                 } else if (m.type === 'combo' && event === 'hit_hazard') {
                     m.progress = 0;
-                } else if (m.type === 'time' && event === 'survived' && val >= m.target) {
-                    m.progress = val;
+                } else if (m.type === 'time' && event === 'survived') {
+                    m.progress = Math.max(m.progress, val);
                 }
 
                 if (m.progress >= m.target && !m.completed) {
